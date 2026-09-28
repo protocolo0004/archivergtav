@@ -1,6 +1,6 @@
 -- [[ EB DO DELTA - ZYRONX UI (REESTRUTURAÇÃO COMPLETA) ]] --
 
-local Library = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/princesinho404/unrenomed/refs/heads/main/ZyronX"))()
+local Library = loadstring(game:HttpGetAsync("https://pastefy.app/xpEVlxQD/raw"))()
 
 -- // Whitelist
 Library.WhitelistedUsers = {
