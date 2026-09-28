@@ -1,0 +1,1698 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+local RunService = game:GetService("RunService")
+local HttpService = game:GetService("HttpService")
+local TweenService = game:GetService("TweenService")
+local Lighting = game:GetService("Lighting")
+
+local player = Players.LocalPlayer
+local pGui = player:WaitForChild("PlayerGui")
+
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local rootPart = character:WaitForChild("HumanoidRootPart")
+
+player.CharacterAdded:Connect(function(newCharacter)
+    character = newCharacter
+    humanoid = newCharacter:WaitForChild("Humanoid")
+    rootPart = newCharacter:WaitForChild("HumanoidRootPart")
+end)
+
+local localInjecao = (CoreGui and CoreGui:FindFirstChild("RobloxGui")) or pGui
+
+if CoreGui:FindFirstChild("HavacLoadingScreen") then
+    CoreGui.HavacLoadingScreen:Destroy()
+end
+
+if localInjecao:FindFirstChild("HavacNextGenUI") then
+    localInjecao:FindFirstChild("HavacNextGenUI"):Destroy()
+end
+
+-- =============================================================================
+-- CONFIGURAÇÕES DE TEMA E ASSETS
+-- =============================================================================
+local TEMA = {
+    FundoGeral = Color3.fromRGB(10, 6, 16),
+    CardAba = Color3.fromRGB(20, 12, 32),
+    CardAbaAtiva = Color3.fromRGB(42, 18, 84),
+    FundoJanelaDireita = Color3.fromRGB(15, 9, 24),
+    CardFuncao = Color3.fromRGB(18, 11, 28),
+    RoxoNeon = Color3.fromRGB(157, 0, 255),
+    RoxoBrilho = Color3.fromRGB(190, 70, 255),
+    TextoBranco = Color3.fromRGB(245, 245, 250),
+    TextoEscuro = Color3.fromRGB(145, 135, 160),
+    BotaoPlay = Color3.fromRGB(130, 50, 230),
+    BotaoPause = Color3.fromRGB(200, 50, 50)
+}
+
+local ASSETS = {
+    LogoHavac = "rbxassetid://134703341831825",
+    FundoFoto = "rbxassetid://91048983599878",
+    IconeX = "rbxassetid://90175037215385",
+    IconeMin = "rbxassetid://113128438187895",
+    IconeCorrer = "rbxassetid://9525535512",
+    IconeConfig = "rbxassetid://6045174790",
+    IconeEspada = "rbxassetid://10811059550",
+    IconeRaio = "rbxassetid://10723345479",
+    BolinhaMin = "rbxassetid://103749755629177"
+}
+
+local DISCORD = {
+    GGT5MHUGA53S = "discord.gg/havac"
+}
+
+local teclaAtalhoAtiva = Enum.KeyCode.K
+local aguardandoNovaTecla = false
+local botaoKeybindComponente = nil
+
+local HitboxConfig = {
+    Tamanho = 0,         
+    Transparencia = 0.5, 
+    Cor = Color3.fromRGB(157, 0, 255), 
+    Whitelist = {}       
+}
+
+-- =============================================================================
+-- TELA DE CARREGAMENTO
+-- =============================================================================
+local LoadingScreenGui = Instance.new("ScreenGui")
+LoadingScreenGui.Name = "HavacLoadingScreen"
+LoadingScreenGui.IgnoreGuiInset = true
+LoadingScreenGui.ResetOnSpawn = false
+LoadingScreenGui.DisplayOrder = 99999
+LoadingScreenGui.Parent = CoreGui
+
+local LoadingBlur = Instance.new("BlurEffect")
+LoadingBlur.Name = "HavacBlur"
+LoadingBlur.Size = 0
+LoadingBlur.Parent = Lighting
+
+local LoadingMain = Instance.new("Frame")
+LoadingMain.Size = UDim2.new(1, 0, 1, 0)
+LoadingMain.BackgroundColor3 = Color3.fromRGB(15, 8, 28)
+LoadingMain.BackgroundTransparency = 1
+LoadingMain.BorderSizePixel = 0
+LoadingMain.Parent = LoadingScreenGui
+
+local ParticleContainer = Instance.new("Frame")
+ParticleContainer.Size = UDim2.new(1, 0, 1, 0)
+ParticleContainer.BackgroundTransparency = 1
+ParticleContainer.ClipsDescendants = true
+ParticleContainer.Parent = LoadingMain
+
+local LoadingGlow = Instance.new("ImageLabel")
+LoadingGlow.Size = UDim2.new(0, 500, 0, 500)
+LoadingGlow.Position = UDim2.new(0.5, 0, 0.4, 0)
+LoadingGlow.AnchorPoint = Vector2.new(0.5, 0.5)
+LoadingGlow.BackgroundTransparency = 1
+LoadingGlow.Image = "rbxassetid://13835417036"
+LoadingGlow.ImageColor3 = TEMA.RoxoNeon
+LoadingGlow.ImageTransparency = 1
+LoadingGlow.ZIndex = 2
+LoadingGlow.Parent = LoadingMain
+
+local LoadingCenter = Instance.new("Frame")
+LoadingCenter.Size = UDim2.new(0, 600, 0, 500)
+LoadingCenter.Position = UDim2.new(0.5, 0, 0.45, 0)
+LoadingCenter.AnchorPoint = Vector2.new(0.5, 0.5)
+LoadingCenter.BackgroundTransparency = 1
+LoadingCenter.ZIndex = 3
+LoadingCenter.Parent = LoadingMain
+
+local LoadingLogo = Instance.new("ImageLabel")
+LoadingLogo.Size = UDim2.new(0, 420, 0, 240)
+LoadingLogo.Position = UDim2.new(0.5, 0, 0.25, 0)
+LoadingLogo.AnchorPoint = Vector2.new(0.5, 0.5)
+LoadingLogo.BackgroundTransparency = 1
+LoadingLogo.Image = ASSETS.LogoHavac
+LoadingLogo.ScaleType = Enum.ScaleType.Fit
+LoadingLogo.ImageTransparency = 1
+LoadingLogo.ZIndex = 4
+LoadingLogo.Parent = LoadingCenter
+
+local LoadingTitle = Instance.new("TextLabel")
+LoadingTitle.Size = UDim2.new(1, 0, 0, 30)
+LoadingTitle.Position = UDim2.new(0.5, 0, 0.52, 0)
+LoadingTitle.AnchorPoint = Vector2.new(0.5, 0.5)
+LoadingTitle.BackgroundTransparency = 1
+LoadingTitle.Font = Enum.Font.GothamBold
+LoadingTitle.Text = "INICIANDO"
+LoadingTitle.TextColor3 = TEMA.TextoBranco
+LoadingTitle.TextSize = 22
+LoadingTitle.TextTransparency = 1
+LoadingTitle.ZIndex = 4
+LoadingTitle.Parent = LoadingCenter
+
+local LoadingStatus = Instance.new("TextLabel")
+LoadingStatus.Size = UDim2.new(1, 0, 0, 20)
+LoadingStatus.Position = UDim2.new(0.5, 0, 0.58, 0)
+LoadingStatus.AnchorPoint = Vector2.new(0.5, 0.5)
+LoadingStatus.BackgroundTransparency = 1
+LoadingStatus.Font = Enum.Font.Gotham
+LoadingStatus.Text = "Carregando recursos do script..."
+LoadingStatus.TextColor3 = TEMA.TextoEscuro
+LoadingStatus.TextSize = 14
+LoadingStatus.TextTransparency = 1
+LoadingStatus.ZIndex = 4
+LoadingStatus.Parent = LoadingCenter
+
+local LoadingBarBg = Instance.new("Frame")
+LoadingBarBg.Size = UDim2.new(0, 480, 0, 16)
+LoadingBarBg.Position = UDim2.new(0.5, 0, 0.67, 0)
+LoadingBarBg.AnchorPoint = Vector2.new(0.5, 0.5)
+LoadingBarBg.BackgroundColor3 = Color3.fromRGB(24, 16, 36)
+LoadingBarBg.BackgroundTransparency = 1
+LoadingBarBg.BorderSizePixel = 0
+LoadingBarBg.ZIndex = 4
+LoadingBarBg.Parent = LoadingCenter
+
+Instance.new("UICorner", LoadingBarBg).CornerRadius = UDim.new(0, 8)
+
+local LoadingBarStroke = Instance.new("UIStroke")
+LoadingBarStroke.Color = Color3.fromRGB(55, 40, 75)
+LoadingBarStroke.Thickness = 1
+LoadingBarStroke.Transparency = 1
+LoadingBarStroke.Parent = LoadingBarBg
+
+local ProgressBar = Instance.new("Frame")
+ProgressBar.Size = UDim2.new(0, 0, 1, 0)
+ProgressBar.BackgroundColor3 = TEMA.RoxoNeon
+ProgressBar.BackgroundTransparency = 1
+ProgressBar.BorderSizePixel = 0
+ProgressBar.ZIndex = 5
+ProgressBar.Parent = LoadingBarBg
+
+Instance.new("UICorner", ProgressBar).CornerRadius = UDim.new(0, 8)
+
+local ProgressGradient = Instance.new("UIGradient")
+ProgressGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, TEMA.RoxoNeon),
+    ColorSequenceKeypoint.new(1, TEMA.RoxoBrilho)
+})
+ProgressGradient.Parent = ProgressBar
+
+local LoadingPercent = Instance.new("TextLabel")
+LoadingPercent.Size = UDim2.new(0, 70, 0, 20)
+LoadingPercent.Position = UDim2.new(1, -60, 0.63, 0)
+LoadingPercent.BackgroundTransparency = 1
+LoadingPercent.Font = Enum.Font.GothamBold
+LoadingPercent.Text = "0%"
+LoadingPercent.TextColor3 = TEMA.RoxoBrilho
+LoadingPercent.TextSize = 14
+LoadingPercent.TextXAlignment = Enum.TextXAlignment.Right
+LoadingPercent.TextTransparency = 1
+LoadingPercent.ZIndex = 4
+LoadingPercent.Parent = LoadingCenter
+
+local LoadingTip = Instance.new("Frame")
+LoadingTip.Size = UDim2.new(0, 420, 0, 48)
+LoadingTip.Position = UDim2.new(0.5, 0, 0.82, 0)
+LoadingTip.AnchorPoint = Vector2.new(0.5, 0.5)
+LoadingTip.BackgroundColor3 = Color3.fromRGB(22, 14, 32)
+LoadingTip.BackgroundTransparency = 1
+LoadingTip.BorderSizePixel = 0
+LoadingTip.ZIndex = 4
+LoadingTip.Parent = LoadingCenter
+
+Instance.new("UICorner", LoadingTip).CornerRadius = UDim.new(0, 8)
+
+local TipStroke = Instance.new("UIStroke")
+TipStroke.Color = Color3.fromRGB(55, 40, 75)
+TipStroke.Thickness = 1
+TipStroke.Transparency = 1
+TipStroke.Parent = LoadingTip
+
+local TipIcon = Instance.new("ImageLabel")
+TipIcon.Size = UDim2.new(0, 16, 0, 16)
+TipIcon.Position = UDim2.new(0, 14, 0.5, -8)
+TipIcon.BackgroundTransparency = 1
+TipIcon.Image = "rbxassetid://6031229987"
+TipIcon.ImageColor3 = TEMA.RoxoBrilho
+TipIcon.ImageTransparency = 1
+TipIcon.ZIndex = 5
+TipIcon.Parent = LoadingTip
+
+local TipText = Instance.new("TextLabel")
+TipText.Size = UDim2.new(1, -45, 1, 0)
+TipText.Position = UDim2.new(0, 38, 0, 0)
+TipText.BackgroundTransparency = 1
+TipText.Font = Enum.Font.Gotham
+TipText.Text = "DICA: Aguarde a inicialização completa para evitar bugs."
+TipText.TextColor3 = TEMA.TextoEscuro
+TipText.TextSize = 12
+TipText.TextXAlignment = Enum.TextXAlignment.Left
+TipText.TextTransparency = 1
+TipText.ZIndex = 5
+TipText.Parent = LoadingTip
+
+local LoadingFooter = Instance.new("TextLabel")
+LoadingFooter.Size = UDim2.new(0, 200, 0, 25)
+LoadingFooter.Position = UDim2.new(0, 20, 1, -20)
+LoadingFooter.AnchorPoint = Vector2.new(0, 1)
+LoadingFooter.BackgroundTransparency = 1
+LoadingFooter.Font = Enum.Font.GothamSemibold
+LoadingFooter.Text = "VERSION 2.7.0"
+LoadingFooter.TextColor3 = Color3.fromRGB(95, 75, 125)
+LoadingFooter.TextSize = 11
+LoadingFooter.TextXAlignment = Enum.TextXAlignment.Left
+LoadingFooter.TextTransparency = 1
+LoadingFooter.ZIndex = 4
+LoadingFooter.Parent = LoadingMain
+
+local loadingAtiva = true
+local particulasLoading = {}
+
+for i = 1, 65 do
+    local particula = Instance.new("Frame")
+    local tamanho = math.random(2, 4)
+
+    particula.Size = UDim2.new(0, tamanho, 0, tamanho)
+    particula.Position = UDim2.new(math.random(), 0, math.random(), 0)
+    particula.BackgroundColor3 = TEMA.RoxoBrilho
+    particula.BackgroundTransparency = 1
+    particula.BorderSizePixel = 0
+    particula.ZIndex = 1
+    particula.Parent = ParticleContainer
+
+    Instance.new("UICorner", particula).CornerRadius = UDim.new(1, 0)
+
+    table.insert(particulasLoading, {
+        Objeto = particula,
+        VelX = (math.random() - 0.5) * 0.0003,
+        VelY = math.random(8, 20) * 0.0001,
+        Alpha = math.random(2, 6) / 10
+    })
+end
+
+local conexaoParticulas = RunService.RenderStepped:Connect(function()
+    if not loadingAtiva then return end
+
+    for _, item in ipairs(particulasLoading) do
+        local p = item.Objeto
+
+        if p and p.Parent then
+            local pos = p.Position
+            local x = pos.X.Scale + item.VelX
+            local y = pos.Y.Scale + item.VelY
+
+            if y > 1.02 then
+                y = -0.02
+                x = math.random()
+            end
+
+            if x < -0.02 or x > 1.02 then
+                x = math.random()
+            end
+
+            p.Position = UDim2.new(x, 0, y, 0)
+        end
+    end
+end)
+
+local function TweenLoading(objeto, tempo, propriedades)
+    local tween = TweenService:Create(objeto, TweenInfo.new(tempo, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), propriedades)
+    tween:Play()
+    return tween
+end
+
+TweenLoading(LoadingBlur, 0.8, {Size = 12})
+TweenLoading(LoadingMain, 0.8, {BackgroundTransparency = 0.45})
+
+task.wait(0.15)
+
+TweenLoading(LoadingGlow, 0.8, {ImageTransparency = 0.5})
+TweenLoading(LoadingLogo, 0.8, {ImageTransparency = 0})
+TweenLoading(LoadingTitle, 0.8, {TextTransparency = 0})
+TweenLoading(LoadingStatus, 0.8, {TextTransparency = 0})
+TweenLoading(LoadingBarBg, 0.8, {BackgroundTransparency = 0})
+TweenLoading(LoadingBarStroke, 0.8, {Transparency = 0})
+TweenLoading(ProgressBar, 0.8, {BackgroundTransparency = 0})
+TweenLoading(LoadingPercent, 0.8, {TextTransparency = 0})
+TweenLoading(LoadingTip, 0.8, {BackgroundTransparency = 0})
+TweenLoading(TipStroke, 0.8, {Transparency = 0})
+TweenLoading(TipIcon, 0.8, {ImageTransparency = 0})
+TweenLoading(TipText, 0.8, {TextTransparency = 0})
+TweenLoading(LoadingFooter, 0.8, {TextTransparency = 0})
+
+task.spawn(function()
+    local pontos = 0
+    while loadingAtiva do
+        pontos = (pontos + 1) % 4
+        LoadingTitle.Text = "INICIANDO" .. string.rep(".", pontos)
+        task.wait(0.5)
+    end
+end)
+
+-- =============================================================================
+-- ESTRUTURA DA INTERFACE
+-- =============================================================================
+local MainGui = Instance.new("ScreenGui")
+MainGui.Name = "HavacNextGenUI"
+MainGui.ResetOnSpawn = false
+MainGui.DisplayOrder = 10000
+MainGui.Parent = localInjecao
+
+local eMobile = UserInputService.TouchEnabled
+local tamanhoMenu = UDim2.new(0.72, 0, 0.68, 0)
+local tamanhoControles = UDim2.new(0, 210, 0, 70)
+local tamanhoBotoesTopo = eMobile and UDim2.new(0, 34, 0, 34) or UDim2.new(0, 55, 0, 55)
+local espacamentoTopos = 15
+local alturaCardsEOpcoes = 58 
+local PosicaoBolinhaSalva = UDim2.new(0.5, -27, 0, 20)
+
+local BaseContainer = Instance.new("Frame")
+BaseContainer.Size = tamanhoMenu
+BaseContainer.Position = UDim2.new(0.5, 0, 0.5, 0)
+BaseContainer.AnchorPoint = Vector2.new(0.5, 0.5)
+BaseContainer.BackgroundTransparency = 1
+BaseContainer.ClipsDescendants = true
+BaseContainer.Visible = false
+BaseContainer.ZIndex = 1
+BaseContainer.Parent = MainGui
+
+local AspectRatio = Instance.new("UIAspectRatioConstraint")
+AspectRatio.AspectRatio = 1.78
+AspectRatio.AspectType = Enum.AspectType.FitWithinMaxSize
+AspectRatio.DominantAxis = Enum.DominantAxis.Width
+AspectRatio.Parent = BaseContainer
+
+local BackgroundPhoto = Instance.new("ImageLabel")
+BackgroundPhoto.Size = UDim2.new(1, 0, 1, 0)
+BackgroundPhoto.BackgroundTransparency = 1
+BackgroundPhoto.Image = ASSETS.FundoFoto
+BackgroundPhoto.ScaleType = Enum.ScaleType.Crop
+BackgroundPhoto.ZIndex = 1
+BackgroundPhoto.Parent = BaseContainer
+
+Instance.new("UICorner", BackgroundPhoto).CornerRadius = UDim.new(0, 24)
+
+local reproduzindo = false
+local emTransicao = false
+local tempoDecorrido = 0
+local slotAtivo = nil
+local botoesCardsInstanciados = {}
+local dadosTrajetosCarregados = {}
+
+local RAW_URLS = {
+    ["Parkours"] = {
+        ["Parkour 1"] = {
+            ["Lento"] = "https://raw.githubusercontent.com/princesinho404/saves/refs/heads/main/a%20--%20completo/parkour%201/parkour_1_lento.json",
+            ["Rápido"] = "https://raw.githubusercontent.com/princesinho404/saves/refs/heads/main/a%20--%20completo/parkour%201/parkour_1_rapido.json",
+            ["Mais Rápido"] = "https://raw.githubusercontent.com/princesinho404/saves/refs/heads/main/a%20--%20completo/parkour%201/parkour_1_mais_rapido.json",
+            ["Sem Burla"] = "https://raw.githubusercontent.com/princesinho404/saves/refs/heads/main/a%20--%20completo/parkour%201/parkour_1_sem_burla.json"
+        },
+        ["Parkour 2"] = {
+            ["Lento"] = "https://raw.githubusercontent.com/princesinho404/saves/refs/heads/main/a%20--%20completo/parkour%202/parkour_2_lento.json",
+            ["Rápido"] = "https://raw.githubusercontent.com/princesinho404/saves/refs/heads/main/a%20--%20completo/parkour%202/parkour_2_rapido.json",
+            ["Mais Rápido"] = "https://raw.githubusercontent.com/princesinho404/saves/refs/heads/main/a%20--%20completo/parkour%202/parkour_2_mais_rapido.json",
+            ["Sem Burla"] = "https://raw.githubusercontent.com/princesinho404/saves/refs/heads/main/a%20--%20completo/parkour%202/parkour_2_sem_burla.json"
+        },
+        ["Parkour 3"] = {
+            ["Lento"] = "https://raw.githubusercontent.com/princesinho404/saves/refs/heads/main/a%20--%20completo/parkour%203/parkour_3_lento.json",
+            ["Rápido"] = "https://raw.githubusercontent.com/princesinho404/saves/refs/heads/main/a%20--%20completo/parkour%203/parkour_3_rapido.json",
+            ["Mais Rápido"] = "https://raw.githubusercontent.com/princesinho404/saves/refs/heads/main/a%20--%20completo/parkour%203/parkour_3_mais_rapido.json",
+            ["Sem Burla"] = "https://raw.githubusercontent.com/princesinho404/saves/refs/heads/main/a%20--%20completo/parkour%203/parkour_3_sem_burla.json"
+        },
+        ["Parkour 4"] = {
+            ["Lento"] = "https://raw.githubusercontent.com/princesinho404/saves/refs/heads/main/a%20--%20completo/parkour%204/parkour_4_lento.json",
+            ["Rápido"] = "https://raw.githubusercontent.com/princesinho404/saves/refs/heads/main/a%20--%20completo/parkour%204/parkour_4_rapido.json",
+            ["Mais Rápido"] = "https://raw.githubusercontent.com/princesinho404/saves/refs/heads/main/a%20--%20completo/parkour%204/parkour_4_mais_rapido.json",
+            ["Sem Burla"] = "https://raw.githubusercontent.com/princesinho404/saves/refs/heads/main/a%20--%20completo/parkour%204/parkour_4_sem_burla.json"
+        }
+    },
+    ["Torres"] = {
+        ["torre 1 lado esquerdo"] = "https://raw.githubusercontent.com/princesinho404/saves/refs/heads/main/torres/torre_1_mais_rapido.json",
+        ["torre 2 lado direito"] = "https://raw.githubusercontent.com/princesinho404/saves/refs/heads/main/torres/torre_2_mais_rapido.json",
+    }
+}
+
+local LeftSection = Instance.new("Frame")
+LeftSection.Size = UDim2.new(0.34, 0, 0.88, 0)
+LeftSection.Position = UDim2.new(0.025, 0, 0.06, 0)
+LeftSection.BackgroundTransparency = 1
+LeftSection.ZIndex = 2
+LeftSection.Parent = BaseContainer
+
+local LogoImage = Instance.new("ImageLabel")
+LogoImage.Size = UDim2.new(0.9, 0, 0.11, 0)
+LogoImage.Position = UDim2.new(0.05, 0, 0, 0)
+LogoImage.BackgroundTransparency = 1
+LogoImage.Image = ASSETS.LogoHavac
+LogoImage.ScaleType = Enum.ScaleType.Fit
+LogoImage.ZIndex = 3
+LogoImage.Parent = LeftSection
+
+local TabListContainer = Instance.new("ScrollingFrame")
+TabListContainer.Size = UDim2.new(1, 0, 0.75, 0)
+TabListContainer.Position = UDim2.new(0, 0, 0.15, 0)
+TabListContainer.BackgroundTransparency = 1
+TabListContainer.BorderSizePixel = 0
+TabListContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
+TabListContainer.ScrollBarThickness = 0
+TabListContainer.ZIndex = 3
+TabListContainer.Parent = LeftSection
+
+local TabListLayout = Instance.new("UIListLayout")
+TabListLayout.Padding = UDim.new(0.022, 0)
+TabListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+TabListLayout.Parent = TabListContainer
+
+TabListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    TabListContainer.CanvasSize = UDim2.new(0, 0, 0, TabListLayout.AbsoluteContentSize.Y + 10)
+end)
+
+local DiscordCard = Instance.new("Frame")
+DiscordCard.Size = UDim2.new(1, 0, 0.08, 0)
+DiscordCard.Position = UDim2.new(0, 0, 0.92, 0)
+DiscordCard.BackgroundColor3 = Color3.fromRGB(30, 20, 50)
+DiscordCard.BackgroundTransparency = 0.15
+DiscordCard.ZIndex = 3
+DiscordCard.Parent = LeftSection
+
+Instance.new("UICorner", DiscordCard).CornerRadius = UDim.new(0, 6)
+
+local linkDiscord = DISCORD.GGT5MHUGA53S
+local DiscordText = Instance.new("TextButton")
+DiscordText.Size = UDim2.new(1, 0, 1, 0)
+DiscordText.BackgroundTransparency = 1
+DiscordText.Font = Enum.Font.GothamMedium
+DiscordText.Text = linkDiscord
+DiscordText.TextColor3 = TEMA.RoxoBrilho
+DiscordText.TextSize = 11
+DiscordText.TextScaled = true
+DiscordText.ZIndex = 4
+DiscordText.Parent = DiscordCard
+
+local DiscordPadding = Instance.new("UIPadding")
+DiscordPadding.PaddingTop = UDim.new(0.15, 0)
+DiscordPadding.PaddingBottom = UDim.new(0.15, 0)
+DiscordPadding.Parent = DiscordText
+
+DiscordText.MouseButton1Click:Connect(function()
+    local funcCopia = setclipboard or toclipboard or (Clipboard and Clipboard.set)
+    if funcCopia then
+        funcCopia("discord.gg/T5MhuGA53S")
+        DiscordText.Text = "COPIADO!"
+    else
+        DiscordText.Text = "NÃO SUPORTADO"
+    end
+    task.wait(2)
+    DiscordText.Text = linkDiscord
+end)
+
+local MainPanel = Instance.new("Frame")
+MainPanel.Size = UDim2.new(0.59, 0, 0.88, 0)
+MainPanel.Position = UDim2.new(0.385, 0, 0.06, 0)
+MainPanel.BackgroundTransparency = 1
+MainPanel.ZIndex = 2
+MainPanel.Parent = BaseContainer
+
+local FrameDireitoFundo = Instance.new("Frame")
+FrameDireitoFundo.Size = UDim2.new(1, 12, 1, 12)
+FrameDireitoFundo.Position = UDim2.new(0, -6, 0, -6)
+FrameDireitoFundo.BackgroundTransparency = 1
+FrameDireitoFundo.ZIndex = 2
+FrameDireitoFundo.Parent = MainPanel
+
+Instance.new("UICorner", FrameDireitoFundo).CornerRadius = UDim.new(0, 16)
+
+local ControlContainer = Instance.new("Frame")
+ControlContainer.Size = tamanhoControles
+ControlContainer.Position = UDim2.new(1, 0, 0, -15)
+ControlContainer.AnchorPoint = Vector2.new(1, 0)
+ControlContainer.BackgroundTransparency = 1
+ControlContainer.ZIndex = 5
+ControlContainer.Parent = MainPanel
+
+local ControlLayout = Instance.new("UIListLayout")
+ControlLayout.FillDirection = Enum.FillDirection.Horizontal
+ControlLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+ControlLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+ControlLayout.Padding = UDim.new(0, espacamentoTopos)
+ControlLayout.Parent = ControlContainer
+
+local MinBtn = Instance.new("ImageButton")
+MinBtn.Size = tamanhoBotoesTopo
+MinBtn.BackgroundTransparency = 1
+MinBtn.Image = ASSETS.IconeMin
+MinBtn.ScaleType = Enum.ScaleType.Fit
+MinBtn.ImageColor3 = TEMA.TextoEscuro
+MinBtn.ZIndex = 6
+MinBtn.Parent = ControlContainer
+
+local CloseBtn = Instance.new("ImageButton")
+CloseBtn.Size = tamanhoBotoesTopo
+CloseBtn.BackgroundTransparency = 1
+CloseBtn.Image = ASSETS.IconeX
+CloseBtn.ScaleType = Enum.ScaleType.Fit
+CloseBtn.ImageColor3 = Color3.fromRGB(240, 80, 80)
+CloseBtn.ZIndex = 6
+CloseBtn.Parent = ControlContainer
+
+local HeaderContainer = Instance.new("Frame")
+HeaderContainer.Size = UDim2.new(0.5, 0, 0.08, 0)
+HeaderContainer.Position = UDim2.new(0, 0, 0, 0)
+HeaderContainer.BackgroundTransparency = 1
+HeaderContainer.ZIndex = 4
+HeaderContainer.Parent = MainPanel
+
+local HeaderIcon = Instance.new("ImageLabel")
+HeaderIcon.Size = UDim2.new(0, 20, 0, 20)
+HeaderIcon.Position = UDim2.new(0, 0, 0.5, -10)
+HeaderIcon.BackgroundTransparency = 1
+HeaderIcon.Image = ASSETS.IconeCorrer
+HeaderIcon.ScaleType = Enum.ScaleType.Fit
+HeaderIcon.ImageColor3 = TEMA.RoxoBrilho
+HeaderIcon.ZIndex = 4
+HeaderIcon.Parent = HeaderContainer
+
+local TabTitle = Instance.new("TextLabel")
+TabTitle.Size = UDim2.new(0.85, 0, 1, 0)
+TabTitle.Position = UDim2.new(0, 28, 0, 0)
+TabTitle.BackgroundTransparency = 1
+TabTitle.Font = Enum.Font.GothamBold
+TabTitle.Text = "PARKOUR 1"
+TabTitle.TextColor3 = TEMA.TextoBranco
+TabTitle.TextSize = 15
+TabTitle.TextXAlignment = Enum.TextXAlignment.Left
+TabTitle.ZIndex = 4
+TabTitle.Parent = HeaderContainer
+
+local ContentFrame = Instance.new("ScrollingFrame")
+ContentFrame.Size = UDim2.new(1, 0, 0.88, 0)
+ContentFrame.Position = UDim2.new(0, 0, 0.12, 0)
+ContentFrame.BackgroundTransparency = 1
+ContentFrame.BorderSizePixel = 0
+ContentFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+ContentFrame.ScrollBarThickness = 3
+ContentFrame.ScrollBarImageColor3 = TEMA.RoxoBrilho
+ContentFrame.ZIndex = 3
+ContentFrame.Parent = MainPanel
+
+local ContentLayout = Instance.new("UIListLayout")
+ContentLayout.Padding = UDim.new(0, 8)
+ContentLayout.SortOrder = Enum.SortOrder.LayoutOrder
+ContentLayout.Parent = ContentFrame
+
+ContentLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    ContentFrame.CanvasSize = UDim2.new(0, 0, 0, ContentLayout.AbsoluteContentSize.Y + 20)
+end)
+
+local AbasInstanciadas = {}
+
+local function IniciarTween(obj, tempo, config)
+    TweenService:Create(obj, TweenInfo.new(tempo, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), config):Play()
+end
+
+-- =============================================================================
+-- LOGICA DO LOOP DOS TRAJETOS (CORRIGIDA)
+-- =============================================================================
+-- Função para encontrar o estado de animação correto no Roblox
+local function obterEnumEstado(valorEstado)
+    if type(valorEstado) == "number" then
+        for _, enumItem in ipairs(Enum.HumanoidStateType:GetEnumItems()) do
+            if enumItem.Value == valorEstado then
+                return enumItem
+            end
+        end
+    elseif type(valorEstado) == "string" and Enum.HumanoidStateType[valorEstado] then
+        return Enum.HumanoidStateType[valorEstado]
+    end
+    return Enum.HumanoidStateType.Running
+end
+
+-- Bloco corrigido
+RunService.PostSimulation:Connect(function(deltaTime)
+    if reproduzindo and rootPart and humanoid and slotAtivo and not emTransicao then
+        tempoDecorrido = tempoDecorrido + deltaTime
+        local historico = slotAtivo.dados
+        
+        local dadosAlvo = nil
+        for i = #historico, 1, -1 do
+            if historico[i].tempo <= tempoDecorrido then
+                dadosAlvo = historico[i]
+                break
+            end
+        end
+        
+        if not dadosAlvo and tempoDecorrido < 0.1 then
+            dadosAlvo = historico[1]
+        end
+        
+        if tempoDecorrido >= slotAtivo.tempoTotal or not dadosAlvo then
+            reproduzindo = false
+            humanoid.PlatformStand = false
+            if slotAtivo and botoesCardsInstanciados[slotAtivo.idUnico] then
+                botoesCardsInstanciados[slotAtivo.idUnico].Text = "PLAY"
+                IniciarTween(botoesCardsInstanciados[slotAtivo.idUnico], 0.2, {BackgroundColor3 = TEMA.BotaoPlay})
+            end
+            slotAtivo = nil
+        else
+            local posX = slotAtivo.posicaoStart[1] + dadosAlvo.offX
+            local posY = slotAtivo.posicaoStart[2] + dadosAlvo.offY
+            local posZ = slotAtivo.posicaoStart[3] + dadosAlvo.offZ
+            
+            rootPart.AssemblyLinearVelocity = Vector3.new(dadosAlvo.velX, dadosAlvo.velY, dadosAlvo.velZ)
+            rootPart.CFrame = CFrame.new(posX, posY, posZ) * CFrame.fromEulerAnglesYXZ(0, dadosAlvo.rotY, 0)
+            
+            -- Aplica o estado de animação correto lido do JSON
+            if dadosAlvo.estado ~= nil then
+                pcall(function()
+                    local estadoEnum = obterEnumEstado(dadosAlvo.estado)
+                    humanoid:ChangeState(estadoEnum)
+                end)
+            end
+        end
+    end
+end)
+-- =============================================================================
+-- FUNÇÃO DE ATIVAÇÃO COM RETORNO DO MOVETO LEGIT
+-- =============================================================================
+local function alternarEstadoTrajeto(nomeAba, nomeBotao, btnComponente)
+    if emTransicao then return end
+
+    local abaLimpa = string.gsub(nomeAba, "^%s*(.-)%s*$", "%1")
+    local botaoLimpo = string.gsub(nomeBotao, "^%s*(.-)%s*$", "%1")
+    local chaveUnica = abaLimpa .. "-" .. botaoLimpo
+
+    if reproduzindo and slotAtivo and slotAtivo.idUnico == chaveUnica then
+        reproduzindo = false
+        humanoid.PlatformStand = false
+        btnComponente.Text = "PLAY"
+        IniciarTween(btnComponente, 0.2, {BackgroundColor3 = TEMA.BotaoPlay})
+        slotAtivo = nil
+        return
+    end
+
+    if reproduzindo then
+        reproduzindo = false
+        humanoid.PlatformStand = false
+        for _, btn in pairs(botoesCardsInstanciados) do
+            btn.Text = "PLAY"
+            btn.BackgroundColor3 = TEMA.BotaoPlay
+        end
+        task.wait(0.05)
+    end
+
+    local dadosDoTrajeto = dadosTrajetosCarregados[chaveUnica]
+    if dadosDoTrajeto and rootPart and humanoid then
+        local historico = dadosDoTrajeto.dados or (type(dadosDoTrajeto) == "table" and dadosDoTrajeto)
+        if not historico or #historico == 0 then return end
+
+        tempoDecorrido = 0
+        local posStart = dadosDoTrajeto.posicaoStart or {rootPart.Position.X, rootPart.Position.Y, rootPart.Position.Z}
+        
+        local primeiroFrame = historico[1]
+        local offX = primeiroFrame and primeiroFrame.offX or 0
+        local offY = primeiroFrame and primeiroFrame.offY or 0
+        local offZ = primeiroFrame and primeiroFrame.offZ or 0
+        local rotYAlvo = primeiroFrame and primeiroFrame.rotY or 0
+
+        local pontoAlvo = Vector3.new(posStart[1] + offX, posStart[2] + offY, posStart[3] + offZ)
+        local targetCFrame = CFrame.new(pontoAlvo) * CFrame.fromEulerAnglesYXZ(0, rotYAlvo, 0)
+        
+        slotAtivo = {
+            nome = nomeBotao,
+            idUnico = chaveUnica,
+            dados = historico,
+            posicaoStart = posStart,
+            tempoTotal = dadosDoTrajeto.tempoTotal
+        }
+
+        btnComponente.Text = "PAUSE"
+        IniciarTween(btnComponente, 0.2, {BackgroundColor3 = TEMA.BotaoPause})
+
+        rootPart.AssemblyLinearVelocity = Vector3.zero
+        rootPart.AssemblyAngularVelocity = Vector3.zero
+        humanoid:ChangeState(Enum.HumanoidStateType.Running)
+
+        local distancia = (rootPart.Position - pontoAlvo).Magnitude
+        
+        if distancia > 1.5 and distancia < 35 then
+            emTransicao = true
+            humanoid:MoveTo(pontoAlvo)
+            
+            local chegou = false
+            local conexao
+            conexao = humanoid.MoveToFinished:Connect(function()
+                chegou = true
+                if conexao then conexao:Disconnect() end
+            end)
+            
+            local inicioEspera = os.clock()
+            while not chegou and (os.clock() - inicioEspera < 2.5) do
+                if (rootPart.Position - pontoAlvo).Magnitude <= 1.5 then
+                    chegou = true
+                    break
+                end
+                task.wait()
+            end
+            if conexao and conexao.Connected then conexao:Disconnect() end
+
+            humanoid.AutoRotate = false
+            local tweenGiro = TweenService:Create(rootPart, TweenInfo.new(0.12, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {CFrame = targetCFrame})
+            tweenGiro:Play()
+            tweenGiro.Completed:Wait()
+            
+            humanoid.AutoRotate = true
+            emTransicao = false
+        else
+            rootPart.CFrame = targetCFrame
+            task.wait(0.02)
+        end
+        
+        rootPart.AssemblyLinearVelocity = Vector3.zero
+        rootPart.AssemblyAngularVelocity = Vector3.zero
+        
+        humanoid.PlatformStand = true
+        reproduzindo = true
+    end
+end
+
+-- =============================================================================
+-- ENGINE MODIFICADOR DE HITBOX
+-- =============================================================================
+local function checarNaWhitelist(vPlayer)
+    if vPlayer == player then return true end
+    for _, item in ipairs(HitboxConfig.Whitelist) do
+        if string.find(string.lower(vPlayer.Name), string.lower(item)) or string.find(string.lower(vPlayer.DisplayName), string.lower(item)) then
+            return true
+        end
+    end
+    return false
+end
+
+task.spawn(function()
+    while task.wait(0.2) do
+        if not MainGui or not MainGui.Parent then break end
+        if HitboxConfig.Tamanho > 0 then
+            for _, p in ipairs(Players:GetPlayers()) do
+                if not checarNaWhitelist(p) and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                    local hrp = p.Character.HumanoidRootPart
+                    hrp.Size = Vector3.new(HitboxConfig.Tamanho, HitboxConfig.Tamanho, HitboxConfig.Tamanho)
+                    hrp.Transparency = HitboxConfig.Transparencia
+                    hrp.Color = HitboxConfig.Cor
+                    hrp.Material = Enum.Material.Neon
+                    hrp.CanCollide = false
+                end
+            end
+        else
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                    local hrp = p.Character.HumanoidRootPart
+                    hrp.Size = Vector3.new(2, 2, 1)
+                    hrp.Transparency = 1
+                    hrp.CanCollide = false
+                end
+            end
+        end
+    end
+end)
+
+-- =============================================================================
+-- GERADORES DA INTERFACE DINÂMICA
+-- =============================================================================
+local function CriarAba(nome, layoutOrder, idIcone)
+    local iconeSelecionado = idIcone or ASSETS.IconeCorrer
+
+    local TabBtn = Instance.new("TextButton")
+    TabBtn.Size = UDim2.new(1, 0, 0, alturaCardsEOpcoes)
+    TabBtn.BackgroundColor3 = layoutOrder == 1 and TEMA.CardAbaAtiva or TEMA.CardAba
+    TabBtn.BackgroundTransparency = 0.05
+    TabBtn.AutoButtonColor = false
+    TabBtn.Text = ""
+    TabBtn.LayoutOrder = layoutOrder
+    TabBtn.ZIndex = 4
+    TabBtn.Parent = TabListContainer
+
+    Instance.new("UICorner", TabBtn).CornerRadius = UDim.new(0, 10)
+
+    local IconBox = Instance.new("ImageLabel")
+    IconBox.Size = UDim2.new(0, 20, 0, 20)
+    IconBox.Position = UDim2.new(0, 14, 0.5, -10)
+    IconBox.BackgroundTransparency = 1
+    IconBox.Image = iconeSelecionado
+    IconBox.ScaleType = Enum.ScaleType.Fit
+    IconBox.ImageColor3 = layoutOrder == 1 and TEMA.RoxoBrilho or TEMA.TextoEscuro
+    IconBox.ZIndex = 5
+    IconBox.Parent = TabBtn
+
+    local LabelAba = Instance.new("TextLabel")
+    LabelAba.Size = UDim2.new(1, -52, 1, 0)
+    LabelAba.Position = UDim2.new(0, 44, 0, 0)
+    LabelAba.BackgroundTransparency = 1
+    LabelAba.Font = Enum.Font.GothamBold
+    LabelAba.Text = string.upper(nome)
+    LabelAba.TextColor3 = layoutOrder == 1 and TEMA.TextoBranco or TEMA.TextoEscuro
+    LabelAba.TextSize = 12
+    LabelAba.TextXAlignment = Enum.TextXAlignment.Left
+    LabelAba.ZIndex = 5
+    LabelAba.Parent = TabBtn
+
+    AbasInstanciadas[nome] = {
+        Botao = TabBtn,
+        Icone = IconBox,
+        Texto = LabelAba,
+        AssetId = iconeSelecionado
+    }
+
+    TabBtn.MouseButton1Click:Connect(function()
+        TabTitle.Text = string.upper(nome)
+        HeaderIcon.Image = iconeSelecionado
+
+        for k, aba in pairs(AbasInstanciadas) do
+            if k == nome then
+                IniciarTween(aba.Botao, 0.2, {BackgroundColor3 = TEMA.CardAbaAtiva})
+                IniciarTween(aba.Texto, 0.2, {TextColor3 = TEMA.TextoBranco})
+                IniciarTween(aba.Icone, 0.2, {ImageColor3 = TEMA.RoxoBrilho})
+            else
+                IniciarTween(aba.Botao, 0.2, {BackgroundColor3 = TEMA.CardAba})
+                IniciarTween(aba.Texto, 0.2, {TextColor3 = TEMA.TextoEscuro})
+                IniciarTween(aba.Icone, 0.2, {ImageColor3 = TEMA.TextoEscuro})
+            end
+        end
+
+        for _, funcCard in ipairs(ContentFrame:GetChildren()) do
+            if funcCard:IsA("Frame") then
+                funcCard.Visible = funcCard.Name == nome .. "_Card"
+            end
+        end
+    end)
+end
+
+local function CriarCardComControle(abaPertencente, idVersao, titulo, descricao)
+    local Card = Instance.new("Frame")
+    Card.Name = abaPertencente .. "_Card"
+    Card.Size = UDim2.new(1, -6, 0, alturaCardsEOpcoes)
+    Card.BackgroundColor3 = TEMA.CardFuncao
+    Card.BackgroundTransparency = 0.05
+    Card.BorderSizePixel = 0
+    Card.Visible = TabTitle.Text == string.upper(abaPertencente)
+    Card.ZIndex = 3
+    Card.Parent = ContentFrame
+
+    Instance.new("UICorner", Card).CornerRadius = UDim.new(0, 10)
+
+    local TagBox = Instance.new("Frame")
+    TagBox.Size = UDim2.new(0, 26, 0, 26)
+    TagBox.Position = UDim2.new(0, 12, 0.5, -13)
+    TagBox.BackgroundColor3 = Color3.fromRGB(32, 18, 50)
+    TagBox.ZIndex = 4
+    TagBox.Parent = Card
+
+    Instance.new("UICorner", TagBox).CornerRadius = UDim.new(0, 6)
+
+    local TagText = Instance.new("TextLabel")
+    TagText.Size = UDim2.new(1, 0, 1, 0)
+    TagText.BackgroundTransparency = 1
+    TagText.Font = Enum.Font.GothamBold
+    TagText.Text = idVersao
+    TagText.TextColor3 = TEMA.RoxoBrilho
+    TagText.TextSize = 10
+    TagText.ZIndex = 5
+    TagText.Parent = TagBox
+
+    local LabelTitulo = Instance.new("TextLabel")
+    LabelTitulo.Size = UDim2.new(0.55, 0, 0, 16)
+    LabelTitulo.Position = UDim2.new(0, 48, 0, 8)
+    LabelTitulo.BackgroundTransparency = 1
+    LabelTitulo.Font = Enum.Font.GothamBold
+    LabelTitulo.Text = string.upper(titulo)
+    LabelTitulo.TextColor3 = TEMA.TextoBranco
+    LabelTitulo.TextSize = 12
+    LabelTitulo.TextXAlignment = Enum.TextXAlignment.Left
+    LabelTitulo.ZIndex = 4
+    LabelTitulo.Parent = Card
+
+    local LabelDesc = Instance.new("TextLabel")
+    LabelDesc.Size = UDim2.new(0.53, 0, 0, 22)
+    LabelDesc.Position = UDim2.new(0, 48, 0, 24)
+    LabelDesc.BackgroundTransparency = 1
+    LabelDesc.Font = Enum.Font.Gotham
+    LabelDesc.Text = descricao
+    LabelDesc.TextColor3 = TEMA.TextoEscuro
+    LabelDesc.TextSize = 10
+    LabelDesc.TextXAlignment = Enum.TextXAlignment.Left
+    LabelDesc.TextYAlignment = Enum.TextYAlignment.Top
+    LabelDesc.TextWrapped = true
+    LabelDesc.ZIndex = 4
+    LabelDesc.Parent = Card
+
+    local ActionBtn = Instance.new("TextButton")
+    ActionBtn.Size = UDim2.new(0, 80, 0, 36)
+    ActionBtn.Position = UDim2.new(0.97, 0, 0.5, 0)
+    ActionBtn.AnchorPoint = Vector2.new(1, 0.5)
+    ActionBtn.BackgroundColor3 = TEMA.BotaoPlay
+    ActionBtn.Font = Enum.Font.GothamBold
+    ActionBtn.Text = "PLAY"
+    ActionBtn.TextColor3 = TEMA.TextoBranco
+    ActionBtn.TextSize = 12
+    ActionBtn.ZIndex = 5
+    ActionBtn.Parent = Card
+
+    Instance.new("UICorner", ActionBtn).CornerRadius = UDim.new(0, 6)
+
+    local chaveAbaBotao = string.gsub(abaPertencente, "^%s*(.-)%s*$", "%1") .. "-" .. string.gsub(titulo, "^%s*(.-)%s*$", "%1")
+    botoesCardsInstanciados[chaveAbaBotao] = ActionBtn
+
+    ActionBtn.MouseButton1Click:Connect(function()
+        alternarEstadoTrajeto(abaPertencente, titulo, ActionBtn)
+    end)
+end
+
+local function CriarCardCliqueUnico(abaPertencente, idVersao, titulo, descricao, codigoExecutavel)
+    local Card = Instance.new("Frame")
+    Card.Name = abaPertencente .. "_Card"
+    Card.Size = UDim2.new(1, -6, 0, alturaCardsEOpcoes)
+    Card.BackgroundColor3 = TEMA.CardFuncao
+    Card.BackgroundTransparency = 0.05
+    Card.BorderSizePixel = 0
+    Card.Visible = false
+    Card.ZIndex = 3
+    Card.Parent = ContentFrame
+
+    Instance.new("UICorner", Card).CornerRadius = UDim.new(0, 10)
+
+    local TagBox = Instance.new("Frame")
+    TagBox.Size = UDim2.new(0, 26, 0, 26)
+    TagBox.Position = UDim2.new(0, 12, 0.5, -13)
+    TagBox.BackgroundColor3 = Color3.fromRGB(32, 18, 50)
+    TagBox.ZIndex = 4
+    TagBox.Parent = Card
+
+    Instance.new("UICorner", TagBox).CornerRadius = UDim.new(0, 6)
+
+    local TagText = Instance.new("TextLabel")
+    TagText.Size = UDim2.new(1, 0, 1, 0)
+    TagText.BackgroundTransparency = 1
+    TagText.Font = Enum.Font.GothamBold
+    TagText.Text = idVersao
+    TagText.TextColor3 = TEMA.RoxoBrilho
+    TagText.TextSize = 10
+    TagText.ZIndex = 5
+    TagText.Parent = TagBox
+
+    local LabelTitulo = Instance.new("TextLabel")
+    LabelTitulo.Size = UDim2.new(0.55, 0, 0, 16)
+    LabelTitulo.Position = UDim2.new(0, 48, 0, 8)
+    LabelTitulo.BackgroundTransparency = 1
+    LabelTitulo.Font = Enum.Font.GothamBold
+    LabelTitulo.Text = string.upper(titulo)
+    LabelTitulo.TextColor3 = TEMA.TextoBranco
+    LabelTitulo.TextSize = 12
+    LabelTitulo.TextXAlignment = Enum.TextXAlignment.Left
+    LabelTitulo.ZIndex = 4
+    LabelTitulo.Parent = Card
+
+    local LabelDesc = Instance.new("TextLabel")
+    LabelDesc.Size = UDim2.new(0.53, 0, 0, 22)
+    LabelDesc.Position = UDim2.new(0, 48, 0, 24)
+    LabelDesc.BackgroundTransparency = 1
+    LabelDesc.Font = Enum.Font.Gotham
+    LabelDesc.Text = descricao
+    LabelDesc.TextColor3 = TEMA.TextoEscuro
+    LabelDesc.TextSize = 10
+    LabelDesc.TextXAlignment = Enum.TextXAlignment.Left
+    LabelDesc.TextYAlignment = Enum.TextYAlignment.Top
+    LabelDesc.TextWrapped = true
+    LabelDesc.ZIndex = 4
+    LabelDesc.Parent = Card
+
+    local LoadBtn = Instance.new("TextButton")
+    LoadBtn.Size = UDim2.new(0, 80, 0, 36)
+    LoadBtn.Position = UDim2.new(0.97, 0, 0.5, 0)
+    LoadBtn.AnchorPoint = Vector2.new(1, 0.5)
+    LoadBtn.BackgroundColor3 = TEMA.RoxoBrilho
+    LoadBtn.Font = Enum.Font.GothamBold
+    LoadBtn.Text = "RUN"
+    LoadBtn.TextColor3 = TEMA.TextoBranco
+    LoadBtn.TextSize = 12
+    LoadBtn.ZIndex = 5
+    LoadBtn.Parent = Card
+
+    Instance.new("UICorner", LoadBtn).CornerRadius = UDim.new(0, 6)
+
+    LoadBtn.MouseButton1Click:Connect(function()
+        pcall(function()
+            local func, err = loadstring(codigoExecutavel)
+            if func then task.spawn(func) else warn(err) end
+        end)
+    end)
+end
+
+local function CriarSliderHitbox(abaPertencente, titulo, valorMin, valorMax, sufixo, campoConfig)
+    local Card = Instance.new("Frame")
+    Card.Name = abaPertencente .. "_Card"
+    Card.Size = UDim2.new(1, -6, 0, alturaCardsEOpcoes)
+    Card.BackgroundColor3 = TEMA.CardFuncao
+    Card.BackgroundTransparency = 0.05
+    Card.Visible = false
+    Card.ZIndex = 3
+    Card.Parent = ContentFrame
+
+    Instance.new("UICorner", Card).CornerRadius = UDim.new(0, 10)
+
+    local LabelTitulo = Instance.new("TextLabel")
+    LabelTitulo.Size = UDim2.new(0.4, 0, 0, 20)
+    LabelTitulo.Position = UDim2.new(0, 15, 0, 8)
+    LabelTitulo.BackgroundTransparency = 1
+    LabelTitulo.Font = Enum.Font.GothamBold
+    LabelTitulo.Text = string.upper(titulo)
+    LabelTitulo.TextColor3 = TEMA.TextoBranco
+    LabelTitulo.TextSize = 12
+    LabelTitulo.TextXAlignment = Enum.TextXAlignment.Left
+    LabelTitulo.ZIndex = 4
+    LabelTitulo.Parent = Card
+
+    local LabelValor = Instance.new("TextLabel")
+    LabelValor.Size = UDim2.new(0.2, 0, 0, 20)
+    LabelValor.Position = UDim2.new(0.8, -15, 0, 8)
+    LabelValor.BackgroundTransparency = 1
+    LabelValor.Font = Enum.Font.GothamBold
+    local valorInicialCompleto = HitboxConfig[campoConfig]
+    if campoConfig == "Transparencia" then valorInicialCompleto = (1 - valorInicialCompleto) * 10 end
+    LabelValor.Text = tostring(math.floor(valorInicialCompleto)) .. sufixo
+    LabelValor.TextColor3 = TEMA.RoxoBrilho
+    LabelValor.TextSize = 12
+    LabelValor.TextXAlignment = Enum.TextXAlignment.Right
+    LabelValor.ZIndex = 4
+    LabelValor.Parent = Card
+
+    local SliderBarraBg = Instance.new("TextButton")
+    SliderBarraBg.Size = UDim2.new(1, -30, 0, 10)
+    SliderBarraBg.Position = UDim2.new(0, 15, 1, -18)
+    SliderBarraBg.BackgroundColor3 = Color3.fromRGB(30, 20, 45)
+    SliderBarraBg.Text = ""
+    SliderBarraBg.AutoButtonColor = false
+    SliderBarraBg.ZIndex = 4
+    SliderBarraBg.Parent = Card
+
+    Instance.new("UICorner", SliderBarraBg).CornerRadius = UDim.new(0.5, 0)
+
+    local SliderBarraAtiva = Instance.new("Frame")
+    local percentualInicial = (HitboxConfig[campoConfig] - valorMin) / (valorMax - valorMin)
+    if campoConfig == "Transparencia" then percentualInicial = 1 - HitboxConfig[campoConfig] end
+    SliderBarraAtiva.Size = UDim2.new(percentualInicial, 0, 1, 0)
+    SliderBarraAtiva.BackgroundColor3 = TEMA.RoxoBrilho
+    SliderBarraAtiva.BorderSizePixel = 0
+    SliderBarraAtiva.ZIndex = 5
+    SliderBarraAtiva.Parent = SliderBarraBg
+
+    Instance.new("UICorner", SliderBarraAtiva).CornerRadius = UDim.new(0.5, 0)
+
+    local manipulando = false
+
+    local function atualizarPosicaoSlider(inputX)
+        local deltaX = math.clamp((inputX - SliderBarraBg.AbsolutePosition.X) / SliderBarraBg.AbsoluteSize.X, 0, 1)
+        SliderBarraAtiva.Size = UDim2.new(deltaX, 0, 1, 0)
+
+        local valorCalculado = valorMin + (deltaX * (valorMax - valorMin))
+        if campoConfig == "Transparencia" then
+            HitboxConfig.Transparencia = 1 - deltaX
+            LabelValor.Text = tostring(math.floor(deltaX * 10)) .. sufixo
+        else
+            HitboxConfig[campoConfig] = math.floor(valorCalculado)
+            LabelValor.Text = tostring(math.floor(valorCalculado)) .. sufixo
+        end
+    end
+
+    SliderBarraBg.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            manipulando = true
+            atualizarPosicaoSlider(input.Position.X)
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if manipulando and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            atualizarPosicaoSlider(input.Position.X)
+        end
+    end)
+
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            manipulando = false
+        end
+    end)
+end
+
+local function CriarSeletorCorHitbox(abaPertencente)
+    local Card = Instance.new("Frame")
+    Card.Name = abaPertencente .. "_Card"
+    Card.Size = UDim2.new(1, -6, 0, alturaCardsEOpcoes)
+    Card.BackgroundColor3 = TEMA.CardFuncao
+    Card.BackgroundTransparency = 0.05
+    Card.Visible = false
+    Card.ZIndex = 3
+    Card.Parent = ContentFrame
+
+    Instance.new("UICorner", Card).CornerRadius = UDim.new(0, 10)
+
+    local LabelTitulo = Instance.new("TextLabel")
+    LabelTitulo.Size = UDim2.new(0.3, 0, 1, 0)
+    LabelTitulo.Position = UDim2.new(0, 15, 0, 0)
+    LabelTitulo.BackgroundTransparency = 1
+    LabelTitulo.Font = Enum.Font.GothamBold
+    LabelTitulo.Text = "COR HITBOX"
+    LabelTitulo.TextColor3 = TEMA.TextoBranco
+    LabelTitulo.TextSize = 12
+    LabelTitulo.TextXAlignment = Enum.TextXAlignment.Left
+    LabelTitulo.ZIndex = 4
+    LabelTitulo.Parent = Card
+
+    local Cores = {
+        {Cor = Color3.fromRGB(157, 0, 255), Pos = 0.45}, 
+        {Cor = Color3.fromRGB(255, 30, 30), Pos = 0.58},  
+        {Cor = Color3.fromRGB(30, 144, 255), Pos = 0.71}, 
+        {Cor = Color3.fromRGB(30, 235, 100), Pos = 0.84}  
+    }
+
+    for _, configCor in ipairs(Cores) do
+        local BtnCor = Instance.new("TextButton")
+        BtnCor.Size = UDim2.new(0, 26, 0, 26)
+        BtnCor.Position = UDim2.new(configCor.Pos, 0, 0.5, -13)
+        BtnCor.BackgroundColor3 = configCor.Cor
+        BtnCor.Text = ""
+        BtnCor.ZIndex = 5
+        BtnCor.Parent = Card
+
+        Instance.new("UICorner", BtnCor).CornerRadius = UDim.new(1, 0)
+
+        BtnCor.MouseButton1Click:Connect(function()
+            HitboxConfig.Cor = configCor.Cor
+        end)
+    end
+end
+
+local function CriarPainelWhitelist(abaPertencente)
+    local Card = Instance.new("Frame")
+    Card.Name = abaPertencente .. "_Card"
+    Card.Size = UDim2.new(1, -6, 0, alturaCardsEOpcoes + 12)
+    Card.BackgroundColor3 = TEMA.CardFuncao
+    Card.BackgroundTransparency = 0.05
+    Card.Visible = false
+    Card.ZIndex = 3
+    Card.Parent = ContentFrame
+
+    Instance.new("UICorner", Card).CornerRadius = UDim.new(0, 10)
+
+    local CampoTexto = Instance.new("TextBox")
+    CampoTexto.Size = UDim2.new(0.55, 0, 0, 34)
+    CampoTexto.Position = UDim2.new(0, 12, 0.5, -17)
+    CampoTexto.BackgroundColor3 = Color3.fromRGB(12, 7, 20)
+    CampoTexto.Font = Enum.Font.GothamSemibold
+    CampoTexto.PlaceholderText = "Nick do amigo..."
+    CampoTexto.Text = ""
+    CampoTexto.TextColor3 = TEMA.TextoBranco
+    CampoTexto.PlaceholderColor3 = TEMA.TextoEscuro
+    CampoTexto.TextSize = 12
+    CampoTexto.ClearTextOnFocus = true
+    CampoTexto.ZIndex = 5
+    CampoTexto.Parent = Card
+
+    Instance.new("UICorner", CampoTexto).CornerRadius = UDim.new(0, 6)
+
+    local AddBtn = Instance.new("TextButton")
+    AddBtn.Size = UDim2.new(0, 62, 0, 34)
+    AddBtn.Position = UDim2.new(0.6, 5, 0.5, -17)
+    AddBtn.BackgroundColor3 = TEMA.BotaoPlay
+    AddBtn.Font = Enum.Font.GothamBold
+    AddBtn.Text = "ADD"
+    AddBtn.TextColor3 = TEMA.TextoBranco
+    AddBtn.TextSize = 11
+    AddBtn.ZIndex = 5
+    AddBtn.Parent = Card
+
+    Instance.new("UICorner", AddBtn).CornerRadius = UDim.new(0, 6)
+
+    local ClearBtn = Instance.new("TextButton")
+    ClearBtn.Size = UDim2.new(0, 62, 0, 34)
+    ClearBtn.Position = UDim2.new(0.8, 8, 0.5, -17)
+    ClearBtn.BackgroundColor3 = TEMA.BotaoPause
+    ClearBtn.Font = Enum.Font.GothamBold
+    ClearBtn.Text = "LIMPAR"
+    ClearBtn.TextColor3 = TEMA.TextoBranco
+    ClearBtn.TextSize = 11
+    ClearBtn.ZIndex = 5
+    ClearBtn.Parent = Card
+
+    Instance.new("UICorner", ClearBtn).CornerRadius = UDim.new(0, 6)
+
+    AddBtn.MouseButton1Click:Connect(function()
+        if CampoTexto.Text ~= "" then
+            table.insert(HitboxConfig.Whitelist, CampoTexto.Text)
+            CampoTexto.Text = "ADICIONADO!"
+            task.wait(1)
+            CampoTexto.Text = ""
+        end
+    end)
+
+    ClearBtn.MouseButton1Click:Connect(function()
+        HitboxConfig.Whitelist = {}
+        CampoTexto.Text = "RESETADO!"
+        task.wait(1)
+        CampoTexto.Text = ""
+    end)
+end
+
+local function CriarCardKeybind(abaPertencente)
+    local Card = Instance.new("Frame")
+    Card.Name = abaPertencente .. "_Card"
+    Card.Size = UDim2.new(1, -6, 0, alturaCardsEOpcoes)
+    Card.BackgroundColor3 = TEMA.CardFuncao
+    Card.BackgroundTransparency = 0.05
+    Card.Visible = false
+    Card.ZIndex = 3
+    Card.Parent = ContentFrame
+
+    Instance.new("UICorner", Card).CornerRadius = UDim.new(0, 10)
+
+    local TagBox = Instance.new("Frame")
+    TagBox.Size = UDim2.new(0, 26, 0, 26)
+    TagBox.Position = UDim2.new(0, 12, 0.5, -13)
+    TagBox.BackgroundColor3 = Color3.fromRGB(32, 18, 50)
+    TagBox.ZIndex = 4
+    TagBox.Parent = Card
+
+    Instance.new("UICorner", TagBox).CornerRadius = UDim.new(0, 6)
+
+    local TagText = Instance.new("TextLabel")
+    TagText.Size = UDim2.new(1, 0, 1, 0)
+    TagText.BackgroundTransparency = 1
+    TagText.Font = Enum.Font.GothamBold
+    TagText.Text = "KB"
+    TagText.TextColor3 = TEMA.RoxoBrilho
+    TagText.TextSize = 10
+    TagText.ZIndex = 5
+    TagText.Parent = TagBox
+
+    local LabelTitulo = Instance.new("TextLabel")
+    LabelTitulo.Size = UDim2.new(0.55, 0, 0, 16)
+    LabelTitulo.Position = UDim2.new(0, 48, 0, 8)
+    LabelTitulo.BackgroundTransparency = 1
+    LabelTitulo.Font = Enum.Font.GothamBold
+    LabelTitulo.Text = "TECLA DE MINIMIZAR"
+    LabelTitulo.TextColor3 = TEMA.TextoBranco
+    LabelTitulo.TextSize = 13
+    LabelTitulo.TextXAlignment = Enum.TextXAlignment.Left
+    LabelTitulo.ZIndex = 4
+    LabelTitulo.Parent = Card
+
+    local LabelDesc = Instance.new("TextLabel")
+    LabelDesc.Size = UDim2.new(0.53, 0, 0, 22)
+    LabelDesc.Position = UDim2.new(0, 48, 0, 24)
+    LabelDesc.BackgroundTransparency = 1
+    LabelDesc.Font = Enum.Font.Gotham
+    LabelDesc.Text = "Altere a tecla de PC usada para ocultar o menu."
+    LabelDesc.TextColor3 = TEMA.TextoEscuro
+    LabelDesc.TextSize = 11
+    LabelDesc.TextXAlignment = Enum.TextXAlignment.Left
+    LabelDesc.TextYAlignment = Enum.TextYAlignment.Top
+    LabelDesc.TextWrapped = true
+    LabelDesc.ZIndex = 4
+    LabelDesc.Parent = Card
+
+    local BindBtn = Instance.new("TextButton")
+    BindBtn.Size = UDim2.new(0, 85, 0, 38)
+    BindBtn.Position = UDim2.new(0.97, 0, 0.5, 0)
+    BindBtn.AnchorPoint = Vector2.new(1, 0.5)
+    BindBtn.BackgroundColor3 = TEMA.CardAbaAtiva
+    BindBtn.Font = Enum.Font.GothamBold
+    BindBtn.Text = "K"
+    BindBtn.TextColor3 = TEMA.TextoBranco
+    BindBtn.TextSize = 13
+    BindBtn.ZIndex = 5
+    BindBtn.Parent = Card
+
+    Instance.new("UICorner", BindBtn).CornerRadius = UDim.new(0, 6)
+    botaoKeybindComponente = BindBtn
+
+    BindBtn.MouseButton1Click:Connect(function()
+        if aguardandoNovaTecla then return end
+        aguardandoNovaTecla = true
+        BindBtn.Text = "..."
+        BindBtn.BackgroundColor3 = TEMA.BotaoPause
+    end)
+end
+
+-- Instanciação das Abas
+CriarAba("Parkour 1", 1, ASSETS.IconeCorrer)
+CriarAba("Parkour 2", 2, ASSETS.IconeCorrer)
+CriarAba("Parkour 3", 3, ASSETS.IconeCorrer)
+CriarAba("Parkour 4", 4, ASSETS.IconeCorrer)
+CriarAba("Torres", 5, ASSETS.IconeCorrer)
+CriarAba("Extras", 6, ASSETS.IconeRaio)
+CriarAba("Hitbox", 7, ASSETS.IconeEspada)
+CriarAba("Config", 8, ASSETS.IconeConfig)
+
+CriarCardComControle("Parkour 1", "Lento", "Lento", "Executa a rota de forma mais lenta e segura.")
+CriarCardComControle("Parkour 1", "Rápido", "Rápido", "Executa a rota em velocidade rápida.")
+CriarCardComControle("Parkour 1", "Mais Rápido", "Mais Rápido", "Executa a rota na velocidade mais rápida.")
+CriarCardComControle("Parkour 1", "Sem Burla", "Sem Burla", "Executa o percurso sem utilizar burlas.")
+
+CriarCardComControle("Parkour 2", "Lento", "Lento", "Executa a rota de forma mais lenta e segura.")
+CriarCardComControle("Parkour 2", "Rápido", "Rápido", "Executa a rota em velocidade rápida.")
+CriarCardComControle("Parkour 2", "Mais Rápido", "Mais Rápido", "Executa a rota na velocidade mais rápida.")
+CriarCardComControle("Parkour 2", "Sem Burla", "Sem Burla", "Executa o percurso sem utilizar burlas.")
+
+CriarCardComControle("Parkour 3", "Lento", "Lento", "Executa a rota de forma mais lenta e segura.")
+CriarCardComControle("Parkour 3", "Rápido", "Rápido", "Executa a rota em velocidade rápida.")
+CriarCardComControle("Parkour 3", "Mais Rápido", "Mais Rápido", "Executa a rota na velocidade mais rápida.")
+CriarCardComControle("Parkour 3", "Sem Burla", "Sem Burla", "Executa o percurso sem utilizar burlas.")
+
+CriarCardComControle("Parkour 4", "Lento", "Lento", "Executa a rota de forma mais lenta e segura.")
+CriarCardComControle("Parkour 4", "Rápido", "Rápido", "Executa a rota em velocidade rápida.")
+CriarCardComControle("Parkour 4", "Mais Rápido", "Mais Rápido", "Executa a rota na velocidade mais rápida.")
+CriarCardComControle("Parkour 4", "Sem Burla", "Sem Burla", "Executa o percurso sem utilizar burlas.")
+
+CriarCardComControle("Torres", "T1", "torre 1 lado esquerdo", "Subida calculada através das quinas do lado esquerdo.")
+CriarCardComControle("Torres", "T2", "torre 2 lado direito", "Trajeto de ascensão focado nos blocos direitos da segunda torre.")
+
+-- CONTEÚDO DA ABA EXTRAS
+CriarCardCliqueUnico(
+    "Extras",
+    "TAF",
+    "Colas TAF",
+    "Injetar Colas TAF.",
+    "loadstring(game:HttpGet('https://raw.githubusercontent.com/princesinho404/unrenomed/refs/heads/main/taf'))()"
+)
+
+CriarCardCliqueUnico(
+    "Extras",
+    "PVP",
+    "PVP PC",
+    "Injetar script PVP.",
+    "loadstring(game:HttpGet('https://pastebin.com/raw/MbGYX9RQ'))()"
+)
+
+CriarCardCliqueUnico(
+    "Extras",
+    "JJS",
+    "Auto JJS",
+    "Carregar Auto JJS.",
+    "loadstring(game:HttpGet('https://raw.githubusercontent.com/princesinho404/unrenomed/refs/heads/main/auto%20jjs'))()"
+)
+
+CriarSliderHitbox("Hitbox", "Tamanho Hitbox", 0, 30, " M", "Tamanho")
+CriarSliderHitbox("Hitbox", "Opacidade", 0, 1, "%", "Transparencia")
+CriarSeletorCorHitbox("Hitbox")
+CriarPainelWhitelist("Hitbox")
+
+-- CONFIGURAÇÃO
+CriarCardKeybind("Config")
+
+-- =============================================================================
+-- ELEMENTO DE MINIMIZAR (BOLINHA FLUTUANTE)
+-- =============================================================================
+local FloatingBall = Instance.new("ImageButton")
+FloatingBall.Name = "HavacFloatingBall"
+FloatingBall.Size = UDim2.new(0, 54, 0, 54)
+FloatingBall.Position = PosicaoBolinhaSalva
+FloatingBall.BackgroundColor3 = TEMA.FundoGeral
+FloatingBall.BackgroundTransparency = 0.1
+FloatingBall.Image = ASSETS.BolinhaMin
+FloatingBall.ScaleType = Enum.ScaleType.Crop
+FloatingBall.Visible = false
+FloatingBall.ZIndex = 1000
+FloatingBall.Parent = MainGui
+
+Instance.new("UICorner", FloatingBall).CornerRadius = UDim.new(1, 0)
+
+local BallStroke = Instance.new("UIStroke")
+BallStroke.Color = TEMA.RoxoBrilho
+BallStroke.Thickness = 2
+BallStroke.Parent = FloatingBall
+
+local estadoJanelasFisicas = {MenuVisivel = true, BolinhaVisivel = false}
+
+UserInputService.InputBegan:Connect(function(input, gProcessed)
+    if LoadingScreenGui.Parent then return end
+    
+    if aguardandoNovaTecla and input.UserInputType == Enum.UserInputType.Keyboard then
+        teclaAtalhoAtiva = input.KeyCode
+        aguardandoNovaTecla = false
+        if botaoKeybindComponente then
+            botaoKeybindComponente.Text = string.upper(input.KeyCode.Name)
+            botaoKeybindComponente.BackgroundColor3 = TEMA.CardAbaAtiva
+        end
+        return
+    end
+
+    if gProcessed then return end
+
+    if input.KeyCode == teclaAtalhoAtiva then
+        if BaseContainer.Visible or FloatingBall.Visible then
+            estadoJanelasFisicas.MenuVisivel = BaseContainer.Visible
+            estadoJanelasFisicas.BolinhaVisivel = FloatingBall.Visible
+            BaseContainer.Visible = false
+            FloatingBall.Visible = false
+        else
+            BaseContainer.Visible = estadoJanelasFisicas.MenuVisivel
+            FloatingBall.Visible = estadoJanelasFisicas.BolinhaVisivel
+            if not BaseContainer.Visible and not FloatingBall.Visible then
+                BaseContainer.Visible = true
+            end
+        end
+    end
+end)
+
+MinBtn.MouseButton1Click:Connect(function()
+    BaseContainer.Visible = false
+    FloatingBall.Position = PosicaoBolinhaSalva
+    FloatingBall.Visible = true
+end)
+
+CloseBtn.MouseButton1Click:Connect(function()
+    MainGui:Destroy()
+end)
+
+-- =============================================================================
+-- SISTEMA DE ARRASTO MOBILE E PC
+-- =============================================================================
+local function configurarArrastoEClick(objetoMovel, objetoClique, ehBolinha)
+    local dragging, dragInput, dragStart, startPos
+    local totalMovido = 0
+    local instanteClique = 0
+
+    objetoClique.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            totalMovido = 0
+            instanteClique = os.clock()
+            dragStart = input.Position
+            startPos = objetoMovel.Position
+            
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                    if ehBolinha and totalMovido < 8 and (os.clock() - instanteClique) < 0.35 then
+                        if FloatingBall.Visible then
+                            FloatingBall.Visible = false
+                            BaseContainer.Visible = true
+                        end
+                    end
+                end
+            end)
+        end
+    end)
+
+    objetoClique.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            totalMovido = totalMovido + delta.Magnitude
+            local novaPosicao = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+            objetoMovel.Position = novaPosicao
+            if ehBolinha then 
+                PosicaoBolinhaSalva = novaPosicao 
+            end
+        end
+    end)
+end
+
+configurarArrastoEClick(BaseContainer, BaseContainer, false)
+configurarArrastoEClick(FloatingBall, FloatingBall, true)
+
+-- =============================================================================
+-- DOWNLOAD DE CACHE E INICIALIZAÇÃO
+-- =============================================================================
+task.spawn(function()
+    local filaDownloads = {}
+
+    -- Montagem da fila de downloads a partir da tabela RAW_URLS
+    for catNome, subData in pairs(RAW_URLS) do
+        if catNome == "Parkours" then
+            for pkNome, modos in pairs(subData) do
+                for modoNome, url in pairs(modos) do
+                    if url and url ~= "" then
+                        table.insert(filaDownloads, {
+                            chave = string.gsub(pkNome, "^%s*(.-)%s*$", "%1") .. "-" .. string.gsub(modoNome, "^%s*(.-)%s*$", "%1"),
+                            url = url
+                        })
+                    end
+                end
+            end
+        elseif catNome == "Torres" then
+            for torreNome, url in pairs(subData) do
+                if url and url ~= "" then
+                    table.insert(filaDownloads, {
+                        chave = "Torres-" .. string.gsub(torreNome, "^%s*(.-)%s*$", "%1"),
+                        url = url
+                    })
+                end
+            end
+        end
+    end
+
+    local totalArquivos = #filaDownloads
+
+    warn("--------------------------------------------")
+    warn("[HAVAC] Iniciando carregamento dos saves...")
+    warn("[HAVAC] Total de arquivos: " .. totalArquivos)
+    warn("--------------------------------------------")
+
+    for i, item in ipairs(filaDownloads) do
+        local inicio = tick()
+
+        LoadingStatus.Text = string.format(
+            "Baixando (%d/%d)\n%s",
+            i,
+            totalArquivos,
+            item.chave
+        )
+
+        warn(string.format(
+            "[%02d/%02d] Baixando -> %s",
+            i,
+            totalArquivos,
+            item.chave
+        ))
+
+        local sucesso, conteudo = pcall(function()
+            return game:HttpGet(item.url)
+        end)
+
+        if sucesso and conteudo then
+            local sucessoJson, dadosDecodificados = pcall(function()
+                return HttpService:JSONDecode(conteudo)
+            end)
+
+            if sucessoJson and dadosDecodificados then
+                dadosTrajetosCarregados[item.chave] =
+                    dadosDecodificados[1]
+                    and dadosDecodificados[1].dados
+                    and dadosDecodificados[1]
+                    or dadosDecodificados
+
+                warn(string.format(
+                    "[%02d/%02d] ✓ %s (%.2fs)",
+                    i,
+                    totalArquivos,
+                    item.chave,
+                    tick() - inicio
+                ))
+            else
+                warn(string.format(
+                    "[%02d/%02d] ✗ JSON inválido -> %s",
+                    i,
+                    totalArquivos,
+                    item.chave
+                ))
+            end
+        else
+            warn(string.format(
+                "[%02d/%02d] ✗ Erro HTTP -> %s",
+                i,
+                totalArquivos,
+                item.chave
+            ))
+        end
+
+        local porcentagemAlvo = i / totalArquivos
+
+        TweenService:Create(
+            ProgressBar,
+            TweenInfo.new(
+                0.12,
+                Enum.EasingStyle.Quad,
+                Enum.EasingDirection.Out
+            ),
+            {
+                Size = UDim2.new(
+                    porcentagemAlvo,
+                    0,
+                    1,
+                    0
+                )
+            }
+        ):Play()
+
+        LoadingPercent.Text = tostring(math.floor(porcentagemAlvo * 100)) .. "%"
+
+        task.wait(0.04)
+    end
+
+    warn("--------------------------------------------")
+    warn("[HAVAC] Todos os saves carregados!")
+    warn("--------------------------------------------")
+
+    LoadingStatus.Text = "Interface carregada com sucesso."
+    LoadingTitle.Text = "CONCLUÍDO"
+    LoadingPercent.Text = "100%"
+
+    TweenLoading(
+        LoadingTitle,
+        0.25,
+        {
+            TextColor3 = TEMA.RoxoBrilho
+        }
+    )
+
+    task.wait(1.1)
+
+    loadingAtiva = false
+
+    if conexaoParticulas then
+        conexaoParticulas:Disconnect()
+    end
+
+    local tempoSaida = 0.55
+
+    TweenLoading(LoadingBlur, tempoSaida, {Size = 0})
+    TweenLoading(LoadingGlow, tempoSaida, {ImageTransparency = 1})
+    TweenLoading(LoadingLogo, tempoSaida, {ImageTransparency = 1})
+    TweenLoading(LoadingTitle, tempoSaida, {TextTransparency = 1})
+    TweenLoading(LoadingStatus, tempoSaida, {TextTransparency = 1})
+    TweenLoading(LoadingBarBg, tempoSaida, {BackgroundTransparency = 1})
+    TweenLoading(LoadingBarStroke, tempoSaida, {Transparency = 1})
+    TweenLoading(ProgressBar, tempoSaida, {BackgroundTransparency = 1})
+    TweenLoading(LoadingPercent, tempoSaida, {TextTransparency = 1})
+    TweenLoading(LoadingTip, tempoSaida, {BackgroundTransparency = 1})
+    TweenLoading(TipStroke, tempoSaida, {Transparency = 1})
+    TweenLoading(TipIcon, tempoSaida, {ImageTransparency = 1})
+    TweenLoading(TipText, tempoSaida, {TextTransparency = 1})
+    TweenLoading(LoadingFooter, tempoSaida, {TextTransparency = 1})
+
+    local tweenFim = TweenLoading(
+        LoadingMain,
+        tempoSaida,
+        {
+            BackgroundTransparency = 1
+        }
+    )
+
+    tweenFim.Completed:Wait()
+
+    if LoadingBlur then
+        LoadingBlur:Destroy()
+    end
+
+    LoadingScreenGui:Destroy()
+    BaseContainer.Visible = true
+end)
