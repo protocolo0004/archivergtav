@@ -1,0 +1,1016 @@
+-- [[ PRINCESINHO MODS // REC v2 - FIXED JUMP HEIGHT + SMART SLOWMOTION + PATH VISUALIZER ]] --
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService")
+local TweenService = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local rootPart = character:WaitForChild("HumanoidRootPart")
+
+player.CharacterAdded:Connect(function(newChar)
+    character = newChar
+    humanoid = newChar:WaitForChild("Humanoid")
+    rootPart = newChar:WaitForChild("HumanoidRootPart")
+end)
+
+-- VARIÁVEIS DE CONTROLE
+local gravacaoTemporaria = {}
+local listaSalvados = {}
+local posicaoInicial = nil
+local gravando = false
+local reproduzindo = false
+local tempoDecorrido = 0
+local slotAtivo = nil
+local proximoIdSlot = 1
+local guiVisivelGeral = true
+
+-- CONFIGURAÇÕES DE SLOW MOTION E FÍSICA
+local gravarEmSlow = false
+local fatorSlow = 0.3
+local conexaoSlowDinamic = nil
+local conexaoWalkSpeedWatch = nil
+local conexaoJumpState = nil
+local velocidadeSemSlow = 16
+local jumpPowerOriginal = 50
+local jumpHeightOriginal = 7.2
+
+-- PASTA DE RENDERIZAÇÃO DAS ROTAS
+local pastaLinhas = Instance.new("Folder", workspace)
+pastaLinhas.Name = "PrincesinhoPathVisualizers"
+
+local NOME_PASTA = "savesbysnooow"
+if makefolder then pcall(function() makefolder(NOME_PASTA) end) end
+
+local function gerarNomeAleatorio(tamanho)
+    local caracteres = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    local nome = ""
+    for i = 1, tamanho or 14 do
+        local rand = math.random(1, #caracteres)
+        nome = nome .. string.sub(caracteres, rand, rand)
+    end
+    return nome
+end
+
+local parentProtegido = (gethui and gethui()) or pcall(function() return game:GetService("CoreGui") end) or player:WaitForChild("PlayerGui")
+
+local sg = Instance.new("ScreenGui")
+sg.Name = gerarNomeAleatorio(16)
+sg.ResetOnSpawn = false
+sg.Enabled = true
+sg.Parent = parentProtegido
+
+local MainFrame = Instance.new("Frame", sg)
+MainFrame.Size = UDim2.new(0, 260, 0, 330)
+MainFrame.Position = UDim2.new(0.5, -130, 0.4, -165)
+MainFrame.BackgroundColor3 = Color3.fromRGB(16, 16, 22)
+MainFrame.BorderSizePixel = 0
+MainFrame.Visible = true
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10)
+
+local UIStroke = Instance.new("UIStroke", MainFrame)
+UIStroke.Color = Color3.fromRGB(130, 80, 240)
+UIStroke.Thickness = 1.2
+
+local Header = Instance.new("Frame", MainFrame)
+Header.Size = UDim2.new(1, 0, 0, 35)
+Header.BackgroundColor3 = Color3.fromRGB(12, 12, 16)
+Header.BorderSizePixel = 0
+Header.ZIndex = 2
+Instance.new("UICorner", Header).CornerRadius = UDim.new(0, 10)
+
+local Title = Instance.new("TextLabel", Header)
+Title.Size = UDim2.new(1, -70, 1, 0)
+Title.Position = UDim2.new(0, 10, 0, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "PRINCESINHO MODS // REC v2"
+Title.TextColor3 = Color3.fromRGB(240, 240, 240)
+Title.TextSize = 9
+Title.Font = Enum.Font.GothamBold
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.ZIndex = 3
+
+local StatusBadge = Instance.new("TextLabel", Header)
+StatusBadge.Size = UDim2.new(0, 52, 0, 18)
+StatusBadge.Position = UDim2.new(1, -62, 0.5, -9)
+StatusBadge.BackgroundColor3 = Color3.fromRGB(26, 26, 36)
+StatusBadge.Text = "Neutro"
+StatusBadge.TextColor3 = Color3.fromRGB(160, 160, 170)
+StatusBadge.TextSize = 9
+StatusBadge.Font = Enum.Font.GothamBold
+StatusBadge.ZIndex = 3
+Instance.new("UICorner", StatusBadge).CornerRadius = UDim.new(0, 4)
+
+local Content = Instance.new("Frame", MainFrame)
+Content.Size = UDim2.new(1, -16, 1, -45)
+Content.Position = UDim2.new(0, 8, 0, 40)
+Content.BackgroundTransparency = 1
+Content.ZIndex = 1
+
+local function criarBotao(parent, texto, pos, tam, cor)
+    local btn = Instance.new("TextButton", parent)
+    btn.Size = tam
+    btn.Position = pos
+    btn.BackgroundColor3 = cor
+    btn.Text = texto
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.TextSize = 10
+    btn.Font = Enum.Font.GothamBold
+    btn.AutoButtonColor = true
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+    return btn
+end
+
+local BtnGravar = criarBotao(Content, "⏺ Gravar Nova Rota", UDim2.new(0, 0, 0, 0), UDim2.new(1, 0, 0, 30), Color3.fromRGB(130, 80, 240))
+local BtnSlowToggle = criarBotao(Content, "🐢 Camera lenta: OFF", UDim2.new(0, 0, 0, 35), UDim2.new(0.72, -3, 0, 24), Color3.fromRGB(24, 24, 34))
+local BtnSlowFactor = criarBotao(Content, "0.3x", UDim2.new(0.72, 3, 0, 35), UDim2.new(0.28, -3, 0, 24), Color3.fromRGB(36, 36, 48))
+
+local BtnReproduzir = criarBotao(Content, "▶ Reproduzir ÚLTIMA", UDim2.new(0, 0, 0, 64), UDim2.new(0.8, -2, 0, 26), Color3.fromRGB(24, 24, 34))
+local BtnVerUltimaRota = criarBotao(Content, "👁️", UDim2.new(0.8, 2, 0, 64), UDim2.new(0.2, -2, 0, 26), Color3.fromRGB(36, 36, 48))
+
+local BtnSalvar = criarBotao(Content, "💾 Salvar Gravação", UDim2.new(0, 0, 0, 95), UDim2.new(1, 0, 0, 26), Color3.fromRGB(24, 24, 34))
+
+local SlowDropdown = Instance.new("Frame", MainFrame)
+SlowDropdown.Size = UDim2.new(0, 65, 0, 160)
+SlowDropdown.Position = UDim2.new(1, 5, 0, 40)
+SlowDropdown.BackgroundColor3 = Color3.fromRGB(16, 16, 22)
+SlowDropdown.BorderSizePixel = 0
+SlowDropdown.Visible = false
+SlowDropdown.ZIndex = 20
+Instance.new("UICorner", SlowDropdown).CornerRadius = UDim.new(0, 6)
+
+local DropStroke = Instance.new("UIStroke", SlowDropdown)
+DropStroke.Color = Color3.fromRGB(130, 80, 240)
+DropStroke.Thickness = 1
+
+local DropScroll = Instance.new("ScrollingFrame", SlowDropdown)
+DropScroll.Size = UDim2.new(1, -4, 1, -4)
+DropScroll.Position = UDim2.new(0, 2, 0, 2)
+DropScroll.BackgroundTransparency = 1
+DropScroll.BorderSizePixel = 0
+DropScroll.ScrollBarThickness = 2
+DropScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+DropScroll.ZIndex = 20
+
+local DropLayout = Instance.new("UIListLayout", DropScroll)
+DropLayout.Padding = UDim.new(0, 2)
+
+DropLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    DropScroll.CanvasSize = UDim2.new(0, 0, 0, DropLayout.AbsoluteContentSize.Y + 2)
+end)
+
+local opcoesVelocidade = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9}
+for _, v in ipairs(opcoesVelocidade) do
+    local optBtn = Instance.new("TextButton", DropScroll)
+    optBtn.Size = UDim2.new(1, 0, 0, 20)
+    optBtn.BackgroundColor3 = Color3.fromRGB(26, 26, 36)
+    optBtn.Text = string.format("%.1fx", v)
+    optBtn.TextColor3 = Color3.fromRGB(220, 220, 230)
+    optBtn.TextSize = 10
+    optBtn.Font = Enum.Font.GothamBold
+    optBtn.ZIndex = 21
+    Instance.new("UICorner", optBtn).CornerRadius = UDim.new(0, 4)
+
+    optBtn.MouseButton1Click:Connect(function()
+        fatorSlow = v
+        BtnSlowFactor.Text = string.format("%.1fx", v)
+        SlowDropdown.Visible = false
+    end)
+end
+
+BtnSlowFactor.MouseButton1Click:Connect(function()
+    SlowDropdown.Visible = not SlowDropdown.Visible
+end)
+
+local ScrollLista = Instance.new("ScrollingFrame", Content)
+ScrollLista.Size = UDim2.new(1, 0, 1, -128)
+ScrollLista.Position = UDim2.new(0, 0, 0, 126)
+ScrollLista.BackgroundTransparency = 1
+ScrollLista.BorderSizePixel = 0
+ScrollLista.CanvasSize = UDim2.new(0, 0, 0, 0)
+ScrollLista.ScrollBarThickness = 3
+ScrollLista.ScrollBarImageColor3 = Color3.fromRGB(130, 80, 240)
+
+local ListLayout = Instance.new("UIListLayout", ScrollLista)
+ListLayout.Padding = UDim.new(0, 4)
+ListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+ListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    ScrollLista.CanvasSize = UDim2.new(0, 0, 0, ListLayout.AbsoluteContentSize.Y + 4)
+end)
+
+--------------------------------------------------------------------
+-- SISTEMA ASSÍNCRONO DE DESENHO DA ROTA 3D
+--------------------------------------------------------------------
+local function removerLinhaDoSlot(slotDados)
+    if slotDados.pastaVisualizer then
+        slotDados.pastaVisualizer:Destroy()
+        slotDados.pastaVisualizer = nil
+    end
+end
+
+local function desenharRota3D(slotDados, corLinha)
+    removerLinhaDoSlot(slotDados)
+    if not slotDados.dados or #slotDados.dados < 2 then return end
+
+    task.defer(function()
+        local pastaSlot = Instance.new("Folder", pastaLinhas)
+        pastaSlot.Name = "Path_" .. tostring(slotDados.id or "Temp")
+        slotDados.pastaVisualizer = pastaSlot
+
+        corLinha = corLinha or Color3.fromRGB(140, 90, 255)
+        local posInicio = Vector3.new(slotDados.posicaoStart[1], slotDados.posicaoStart[2], slotDados.posicaoStart[3])
+
+        if character then
+            character.Archivable = true
+            local clone = character:Clone()
+            character.Archivable = false
+
+            if clone then
+                clone.Name = "StartGhost"
+                for _, item in ipairs(clone:GetDescendants()) do
+                    if item:IsA("BasePart") then
+                        item.Anchored = true
+                        item.CanCollide = false
+                        item.Transparency = 0.5
+                    elseif item:IsA("LocalScript") or item:IsA("Script") then
+                        item:Destroy()
+                    end
+                end
+                
+                local hum = clone:FindFirstChildOfClass("Humanoid")
+                if hum then hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None end
+
+                local pPrimeiro = slotDados.dados[1]
+                local posStartActual = posInicio + Vector3.new(pPrimeiro.offX, pPrimeiro.offY, pPrimeiro.offZ)
+                local cfStartActual = CFrame.new(posStartActual) * CFrame.fromEulerAnglesYXZ(0, pPrimeiro.rotY, 0)
+                
+                clone:PivotTo(cfStartActual)
+                clone.Parent = pastaSlot
+            end
+        end
+
+        local totalPontos = #slotDados.dados
+        local maxSegumentos = 40
+        local passo = math.max(1, math.floor(totalPontos / maxSegumentos))
+
+        local pontos = {}
+        for i = 1, totalPontos, passo do
+            local p = slotDados.dados[i]
+            table.insert(pontos, posInicio + Vector3.new(p.offX, p.offY - 2.8, p.offZ))
+        end
+        local pUltimo = slotDados.dados[totalPontos]
+        table.insert(pontos, posInicio + Vector3.new(pUltimo.offX, pUltimo.offY - 2.8, pUltimo.offZ))
+
+        for i = 1, #pontos - 1 do
+            local pA = pontos[i]
+            local pB = pontos[i + 1]
+
+            local partA = Instance.new("Part")
+            partA.Size = Vector3.new(0.05, 0.05, 0.05)
+            partA.Position = pA
+            partA.Anchored = true
+            partA.CanCollide = false
+            partA.Transparency = 1
+            partA.Parent = pastaSlot
+
+            local partB = Instance.new("Part")
+            partB.Size = Vector3.new(0.05, 0.05, 0.05)
+            partB.Position = pB
+            partB.Anchored = true
+            partB.CanCollide = false
+            partB.Transparency = 1
+            partB.Parent = pastaSlot
+
+            local attA = Instance.new("Attachment", partA)
+            local attB = Instance.new("Attachment", partB)
+
+            local beam = Instance.new("Beam", pastaSlot)
+            beam.Attachment0 = attA
+            beam.Attachment1 = attB
+            beam.Color = ColorSequence.new(corLinha)
+            beam.Width0 = 0.2
+            beam.Width1 = 0.2
+            beam.FaceCamera = true
+            beam.LightEmission = 0.8
+            beam.Transparency = NumberSequence.new(0.2)
+        end
+    end)
+end
+
+--------------------------------------------------------------------
+-- SISTEMA DE FÍSICA DE SLOW MOTION E PULO CONTROLADO
+--------------------------------------------------------------------
+local function atualizarForcaVectorForce(ativo)
+    if not character then return end
+    local root = character:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+
+    local vf = root:FindFirstChild("GravidadeVectorForce")
+    
+    if not ativo or not gravando or not gravarEmSlow then
+        if vf then vf.Enabled = false end
+        return
+    end
+
+    if not vf then
+        local attachment = root:FindFirstChild("RootRigAttachment") or Instance.new("Attachment", root)
+        vf = Instance.new("VectorForce")
+        vf.Name = "GravidadeVectorForce"
+        vf.Attachment0 = attachment
+        vf.RelativeTo = Enum.ActuatorRelativeTo.World
+        vf.ApplyAtCenterOfMass = true
+        vf.Parent = root
+    end
+
+    local massaTotal = 0
+    for _, part in ipairs(character:GetDescendants()) do
+        if part:IsA("BasePart") then
+            massaTotal = massaTotal + part:GetMass()
+        end
+    end
+
+    local gravidadeNormal = workspace.Gravity
+    local gravidadeDesejada = gravidadeNormal * (fatorSlow * fatorSlow)
+    local diferencaGravidade = gravidadeNormal - gravidadeDesejada
+    
+    vf.Force = Vector3.new(0, massaTotal * diferencaGravidade, 0)
+
+    local estado = humanoid:GetState()
+    if estado == Enum.HumanoidStateType.Freefall or estado == Enum.HumanoidStateType.Jumping then
+        vf.Enabled = true
+    else
+        vf.Enabled = false
+    end
+end
+
+local function aplicarFisicaSlow(ativo)
+    if conexaoSlowDinamic then conexaoSlowDinamic:Disconnect() conexaoSlowDinamic = nil end
+    if conexaoWalkSpeedWatch then conexaoWalkSpeedWatch:Disconnect() conexaoWalkSpeedWatch = nil end
+    if conexaoJumpState then conexaoJumpState:Disconnect() conexaoJumpState = nil end
+
+    if ativo then
+        if humanoid then
+            velocidadeSemSlow = humanoid.WalkSpeed
+            jumpPowerOriginal = humanoid.JumpPower
+            jumpHeightOriginal = humanoid.JumpHeight
+
+            if humanoid.UseJumpPower then
+                humanoid.JumpPower = jumpPowerOriginal * fatorSlow
+            else
+                humanoid.JumpHeight = jumpHeightOriginal * (fatorSlow * fatorSlow)
+            end
+            
+            conexaoWalkSpeedWatch = humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
+                local velAtual = humanoid.WalkSpeed
+                if math.abs(velAtual - (velocidadeSemSlow * fatorSlow)) > 0.1 then
+                    velocidadeSemSlow = velAtual
+                end
+            end)
+
+            conexaoJumpState = humanoid.StateChanged:Connect(function(_, novoEstado)
+                if novoEstado == Enum.HumanoidStateType.Jumping and rootPart then
+                    task.defer(function()
+                        if rootPart then
+                            local vel = rootPart.AssemblyLinearVelocity
+                            rootPart.AssemblyLinearVelocity = Vector3.new(vel.X, vel.Y * fatorSlow, vel.Z)
+                        end
+                    end)
+                end
+            end)
+        end
+
+        conexaoSlowDinamic = RunService.PreSimulation:Connect(function()
+            if humanoid and gravando then
+                humanoid.WalkSpeed = velocidadeSemSlow * fatorSlow
+                atualizarForcaVectorForce(true)
+            end
+        end)
+
+        pcall(function()
+            local animator = humanoid:FindFirstChildOfClass("Animator")
+            if animator then
+                for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+                    track:AdjustSpeed(fatorSlow)
+                end
+            end
+        end)
+    else
+        atualizarForcaVectorForce(false)
+
+        if humanoid then
+            humanoid.WalkSpeed = velocidadeSemSlow
+            humanoid.JumpPower = jumpPowerOriginal
+            humanoid.JumpHeight = jumpHeightOriginal
+        end
+
+        pcall(function()
+            local animator = humanoid:FindFirstChildOfClass("Animator")
+            if animator then
+                for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+                    track:AdjustSpeed(1.0)
+                end
+            end
+        end)
+    end
+end
+
+-- MOVER ATÉ O INÍCIO
+local function moverAteInicio(destino, targetCFrame, callback)
+    if not rootPart or not humanoid or not character then return end
+    local distancia = (rootPart.Position - destino).Magnitude
+
+    if distancia > 50 or distancia <= 1.5 then
+        rootPart.AssemblyLinearVelocity = Vector3.zero
+        character:PivotTo(targetCFrame)
+        if callback then callback() end
+        return
+    end
+
+    rootPart.AssemblyLinearVelocity = Vector3.zero
+    humanoid:MoveTo(destino)
+
+    local conexao
+    local finalizado = false
+
+    local function finalizar()
+        if finalizado then return end
+        finalizado = true
+        if conexao then conexao:Disconnect() end
+        
+        humanoid.AutoRotate = false
+        local tween = TweenService:Create(
+            rootPart,
+            TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+            {CFrame = targetCFrame}
+        )
+        tween:Play()
+        tween.Completed:Wait()
+        humanoid.AutoRotate = true
+
+        if callback then callback() end
+    end
+
+    conexao = humanoid.MoveToFinished:Connect(function()
+        finalizar()
+    end)
+
+    task.delay(3.0, function()
+        if not finalizado then
+            finalizar()
+        end
+    end)
+end
+
+-- LOOP PRINCIPAL DE FÍSICA E ROTAÇÃO
+RunService.PostSimulation:Connect(function(deltaTime)
+    if not rootPart or not humanoid then return end
+
+    if gravando then
+        local deltaReal = gravarEmSlow and (deltaTime * fatorSlow) or deltaTime
+        tempoDecorrido = tempoDecorrido + deltaReal
+        
+        local _, y, _ = rootPart.CFrame:ToEulerAnglesYXZ()
+        local multVel = gravarEmSlow and (1 / fatorSlow) or 1.0
+        
+        table.insert(gravacaoTemporaria, {
+            tempo = tempoDecorrido,
+            velX = rootPart.AssemblyLinearVelocity.X * multVel,
+            velY = rootPart.AssemblyLinearVelocity.Y * multVel,
+            velZ = rootPart.AssemblyLinearVelocity.Z * multVel,
+            estado = humanoid:GetState().Name,
+            rotY = y,
+            offX = rootPart.Position.X - posicaoInicial.X,
+            offY = rootPart.Position.Y - posicaoInicial.Y,
+            offZ = rootPart.Position.Z - posicaoInicial.Z
+        })
+        
+    elseif reproduzindo and slotAtivo then
+        tempoDecorrido = tempoDecorrido + deltaTime
+        local historico = slotAtivo.dados
+        
+        local dadosAlvo = nil
+        for i = #historico, 1, -1 do
+            if historico[i].tempo <= tempoDecorrido then
+                dadosAlvo = historico[i]
+                break
+            end
+        end
+        
+        if tempoDecorrido >= slotAtivo.tempoTotal or not dadosAlvo then
+            if slotAtivo.loopAtivo then
+                tempoDecorrido = 0
+                rootPart.AssemblyLinearVelocity = Vector3.zero
+                local posX = slotAtivo.posicaoStart[1] + historico[1].offX
+                local posY = slotAtivo.posicaoStart[2] + historico[1].offY
+                local posZ = slotAtivo.posicaoStart[3] + historico[1].offZ
+                character:PivotTo(CFrame.new(posX, posY, posZ) * CFrame.fromEulerAnglesYXZ(0, historico[1].rotY, 0))
+            else
+                reproduzindo = false
+                if slotAtivo.botaoPlay then slotAtivo.botaoPlay.Text = "▶" end
+                slotAtivo = nil
+                StatusBadge.Text = "Neutro"
+                StatusBadge.TextColor3 = Color3.fromRGB(160, 160, 170)
+            end
+        else
+            local posX = slotAtivo.posicaoStart[1] + dadosAlvo.offX
+            local posY = slotAtivo.posicaoStart[2] + dadosAlvo.offY
+            local posZ = slotAtivo.posicaoStart[3] + dadosAlvo.offZ
+            
+            local posAlvo = Vector3.new(posX, posY, posZ)
+            local cframeRotAlvo = CFrame.fromEulerAnglesYXZ(0, dadosAlvo.rotY, 0)
+            local targetCFrame = CFrame.new(posAlvo) * cframeRotAlvo
+
+            local capsAtivo = UserInputService:IsKeyDown(Enum.KeyCode.CapsLock) or UserInputService.MouseBehavior == Enum.MouseBehavior.LockCenter
+            
+            if capsAtivo then
+                rootPart.CFrame = targetCFrame
+            else
+                local rotSuave = rootPart.CFrame.Rotation:Lerp(cframeRotAlvo, math.clamp(deltaTime * 18, 0.15, 1.0))
+                rootPart.CFrame = CFrame.new(posAlvo) * rotSuave
+            end
+            
+            rootPart.AssemblyLinearVelocity = Vector3.new(dadosAlvo.velX, dadosAlvo.velY, dadosAlvo.velZ)
+            
+            pcall(function()
+                if Enum.HumanoidStateType[dadosAlvo.estado] then
+                    humanoid:ChangeState(Enum.HumanoidStateType[dadosAlvo.estado])
+                end
+            end)
+        end
+    end
+end)
+
+-- ALTERNAR PLAY / PAUSE
+local function alternarPlaySlot(slotDados)
+    if reproduzindo and slotAtivo == slotDados then
+        reproduzindo = false
+        slotDados.botaoPlay.Text = "▶"
+        slotAtivo = nil
+        StatusBadge.Text = "Neutro"
+        StatusBadge.TextColor3 = Color3.fromRGB(160, 160, 170)
+    else
+        if reproduzindo and slotAtivo then slotAtivo.botaoPlay.Text = "▶" end
+        
+        if gravando then
+            gravando = false
+            aplicarFisicaSlow(false)
+        end
+        
+        tempoDecorrido = 0
+        slotAtivo = slotDados
+
+        local inicio = Vector3.new(slotDados.posicaoStart[1], slotDados.posicaoStart[2], slotDados.posicaoStart[3])
+        local destino = inicio + Vector3.new(slotDados.dados[1].offX, slotDados.dados[1].offY, slotDados.dados[1].offZ)
+        local targetCFrame = CFrame.new(destino) * CFrame.fromEulerAnglesYXZ(0, slotDados.dados[1].rotY, 0)
+
+        slotDados.botaoPlay.Text = "⏳"
+
+        moverAteInicio(destino, targetCFrame, function()
+            reproduzindo = true
+            slotDados.botaoPlay.Text = "⏸"
+            StatusBadge.Text = "Play"
+            StatusBadge.TextColor3 = Color3.fromRGB(90, 255, 90)
+        end)
+    end
+end
+
+-- SALVAMENTO
+local function salvarListaEmArquivo()
+    task.spawn(function()
+        if writefile and HttpService then
+            local dadosParaSalvar = {}
+            for _, slot in ipairs(listaSalvados) do
+                table.insert(dadosParaSalvar, {
+                    id = slot.id,
+                    nome = slot.nome,
+                    dados = slot.dados,
+                    posicaoStart = slot.posicaoStart,
+                    tempoTotal = slot.tempoTotal,
+                    keybindName = slot.keybind and slot.keybind.Name or nil,
+                    loopAtivo = slot.loopAtivo or false
+                })
+            end
+            pcall(function() 
+                writefile(NOME_PASTA .. "/lista_saves.txt", HttpService:JSONEncode(dadosParaSalvar)) 
+            end)
+        end
+    end)
+end
+
+-- POPUP DE CONFIGURAÇÕES
+local PopupFrame = Instance.new("Frame", MainFrame)
+PopupFrame.Size = UDim2.new(1, -12, 0, 140)
+PopupFrame.Position = UDim2.new(0, 6, 1, -146)
+PopupFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 16)
+PopupFrame.BorderSizePixel = 0
+PopupFrame.Visible = false
+PopupFrame.ZIndex = 50
+Instance.new("UICorner", PopupFrame).CornerRadius = UDim.new(0, 8)
+
+local PopupStroke = Instance.new("UIStroke", PopupFrame)
+PopupStroke.Color = Color3.fromRGB(130, 80, 240)
+PopupStroke.Thickness = 1
+
+local PopupTitle = Instance.new("TextLabel", PopupFrame)
+PopupTitle.Size = UDim2.new(1, -12, 0, 20)
+PopupTitle.Position = UDim2.new(0, 6, 0, 4)
+PopupTitle.BackgroundTransparency = 1
+PopupTitle.Text = "Configurações"
+PopupTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+PopupTitle.TextSize = 10
+PopupTitle.Font = Enum.Font.GothamBold
+PopupTitle.TextXAlignment = Enum.TextXAlignment.Left
+PopupTitle.ZIndex = 51
+
+local function criarBotaoPopup(texto, pos, tam, cor)
+    local btn = Instance.new("TextButton", PopupFrame)
+    btn.Size = tam
+    btn.Position = pos
+    btn.BackgroundColor3 = cor
+    btn.Text = texto
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.TextSize = 10
+    btn.Font = Enum.Font.GothamBold
+    btn.AutoButtonColor = true
+    btn.ZIndex = 51
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+    return btn
+end
+
+local BtnKeybind = criarBotaoPopup("Atalho: Nenhum", UDim2.new(0, 6, 0, 26), UDim2.new(1, -12, 0, 26), Color3.fromRGB(24, 24, 32))
+local BtnLoopCheck = criarBotaoPopup("Loop: DESATIVADO", UDim2.new(0, 6, 0, 56), UDim2.new(1, -12, 0, 26), Color3.fromRGB(24, 24, 32))
+
+local BtnDeletar = criarBotaoPopup("Excluir", UDim2.new(0, 6, 0, 104), UDim2.new(0.5, -9, 0, 26), Color3.fromRGB(180, 40, 50))
+local BtnCancelar = criarBotaoPopup("Fechar", UDim2.new(0.5, 3, 0, 104), UDim2.new(0.5, -9, 0, 26), Color3.fromRGB(36, 36, 48))
+
+local slotSelecionadoPopup = nil
+local escutandoTeclado = false
+
+local function fecharPopupConfig()
+    PopupFrame.Visible = false
+    slotSelecionadoPopup = nil
+    escutandoTeclado = false
+end
+
+BtnCancelar.MouseButton1Click:Connect(fecharPopupConfig)
+
+BtnDeletar.MouseButton1Click:Connect(function()
+    if slotSelecionadoPopup then
+        local alvo = slotSelecionadoPopup.dados
+        if slotAtivo == alvo then reproduzindo = false StatusBadge.Text = "Neutro" StatusBadge.TextColor3 = Color3.fromRGB(160, 160, 170) end
+        removerLinhaDoSlot(alvo)
+        for i, v in ipairs(listaSalvados) do if v == alvo then table.remove(listaSalvados, i) break end end
+        slotSelecionadoPopup.frameUI:Destroy()
+        salvarListaEmArquivo()
+        fecharPopupConfig()
+    end
+end)
+
+BtnKeybind.MouseButton1Click:Connect(function()
+    if not slotSelecionadoPopup then return end
+    if escutandoTeclado then
+        slotSelecionadoPopup.dados.keybind = nil
+        BtnKeybind.Text = "Atalho: Nenhum"
+        escutandoTeclado = false
+        salvarListaEmArquivo()
+    else
+        escutandoTeclado = true
+        BtnKeybind.Text = "Aperte uma tecla..."
+    end
+end)
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if escutandoTeclado and input.UserInputType == Enum.UserInputType.MouseButton1 then
+        task.delay(0.1, function()
+            if escutandoTeclado then
+                escutandoTeclado = false
+                if slotSelecionadoPopup then
+                    BtnKeybind.Text = "Atalho: " .. (slotSelecionadoPopup.dados.keybind and slotSelecionadoPopup.dados.keybind.Name or "Nenhum")
+                end
+            end
+        end)
+        return
+    end
+
+    if gameProcessed then return end
+    
+    if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == Enum.KeyCode.K then
+        guiVisivelGeral = not guiVisivelGeral
+        sg.Enabled = guiVisivelGeral
+        return
+    end
+end)
+
+BtnLoopCheck.MouseButton1Click:Connect(function()
+    if slotSelecionadoPopup then
+        slotSelecionadoPopup.dados.loopAtivo = not slotSelecionadoPopup.dados.loopAtivo
+        BtnLoopCheck.Text = "Loop: " .. (slotSelecionadoPopup.dados.loopAtivo and "ATIVADO ✅" or "DESATIVADO ❌")
+        salvarListaEmArquivo()
+    end
+end)
+
+BtnSlowToggle.MouseButton1Click:Connect(function()
+    gravarEmSlow = not gravarEmSlow
+    if gravarEmSlow then
+        BtnSlowToggle.Text = "🐢 Camera lenta: ON"
+        BtnSlowToggle.BackgroundColor3 = Color3.fromRGB(60, 40, 100)
+    else
+        BtnSlowToggle.Text = "🐢 Camera lenta: OFF"
+        BtnSlowToggle.BackgroundColor3 = Color3.fromRGB(24, 24, 34)
+    end
+end)
+
+-- VER ROTA DA ÚLTIMA GRAVAÇÃO TEMPORÁRIA
+local exibindoUltimaLinha = false
+local slotUltimaTemp = nil
+
+BtnVerUltimaRota.MouseButton1Click:Connect(function()
+    if #gravacaoTemporaria > 0 and posicaoInicial then
+        exibindoUltimaLinha = not exibindoUltimaLinha
+        if exibindoUltimaLinha then
+            BtnVerUltimaRota.BackgroundColor3 = Color3.fromRGB(130, 80, 240)
+            slotUltimaTemp = {
+                id = "Temp",
+                dados = gravacaoTemporaria,
+                posicaoStart = {posicaoInicial.X, posicaoInicial.Y, posicaoInicial.Z}
+            }
+            desenharRota3D(slotUltimaTemp, Color3.fromRGB(255, 215, 0))
+        else
+            BtnVerUltimaRota.BackgroundColor3 = Color3.fromRGB(36, 36, 48)
+            if slotUltimaTemp then removerLinhaDoSlot(slotUltimaTemp) end
+        end
+    end
+end)
+
+local function criarItemLista(slotDados)
+    local ItemFrame = Instance.new("Frame", ScrollLista)
+    ItemFrame.Size = UDim2.new(1, -4, 0, 28)
+    ItemFrame.BackgroundColor3 = Color3.fromRGB(24, 24, 32)
+    ItemFrame.BorderSizePixel = 0
+    Instance.new("UICorner", ItemFrame).CornerRadius = UDim.new(0, 5)
+    
+    local TextBox = Instance.new("TextBox", ItemFrame)
+    TextBox.Size = UDim2.new(1, -78, 1, 0)
+    TextBox.Position = UDim2.new(0, 6, 0, 0)
+    TextBox.BackgroundTransparency = 1
+    TextBox.Text = slotDados.nome
+    TextBox.TextColor3 = Color3.fromRGB(230, 230, 230)
+    TextBox.TextSize = 10
+    TextBox.Font = Enum.Font.Gotham
+    TextBox.TextXAlignment = Enum.TextXAlignment.Left
+    TextBox.ClearTextOnFocus = false
+    
+    TextBox.FocusLost:Connect(function()
+        if TextBox.Text == "" then TextBox.Text = slotDados.nome else slotDados.nome = TextBox.Text end
+        salvarListaEmArquivo()
+    end)
+
+    local BtnEngrenagem = Instance.new("TextButton", ItemFrame)
+    BtnEngrenagem.Size = UDim2.new(0, 22, 0, 22)
+    BtnEngrenagem.Position = UDim2.new(1, -70, 0.5, -11)
+    BtnEngrenagem.BackgroundColor3 = Color3.fromRGB(34, 34, 44)
+    BtnEngrenagem.Text = "⚙"
+    BtnEngrenagem.TextColor3 = Color3.fromRGB(255, 255, 255)
+    BtnEngrenagem.TextSize = 10
+    Instance.new("UICorner", BtnEngrenagem).CornerRadius = UDim.new(0, 4)
+
+    local BtnVerRota = Instance.new("TextButton", ItemFrame)
+    BtnVerRota.Size = UDim2.new(0, 22, 0, 22)
+    BtnVerRota.Position = UDim2.new(1, -46, 0.5, -11)
+    BtnVerRota.BackgroundColor3 = Color3.fromRGB(34, 34, 44)
+    BtnVerRota.Text = "👁️"
+    BtnVerRota.TextColor3 = Color3.fromRGB(255, 255, 255)
+    BtnVerRota.TextSize = 9
+    Instance.new("UICorner", BtnVerRota).CornerRadius = UDim.new(0, 4)
+
+    local BtnPlayPause = Instance.new("TextButton", ItemFrame)
+    BtnPlayPause.Size = UDim2.new(0, 22, 0, 22)
+    BtnPlayPause.Position = UDim2.new(1, -22, 0.5, -11)
+    BtnPlayPause.BackgroundColor3 = Color3.fromRGB(34, 34, 44)
+    BtnPlayPause.Text = "▶"
+    BtnPlayPause.TextColor3 = Color3.fromRGB(255, 255, 255)
+    BtnPlayPause.TextSize = 10
+    Instance.new("UICorner", BtnPlayPause).CornerRadius = UDim.new(0, 4)
+    
+    slotDados.botaoPlay = BtnPlayPause
+
+    BtnPlayPause.MouseButton1Click:Connect(function() alternarPlaySlot(slotDados) end)
+
+    local mostrandoLinha = false
+    BtnVerRota.MouseButton1Click:Connect(function()
+        mostrandoLinha = not mostrandoLinha
+        if mostrandoLinha then
+            BtnVerRota.BackgroundColor3 = Color3.fromRGB(130, 80, 240)
+            desenharRota3D(slotDados, Color3.fromRGB(140, 90, 255))
+        else
+            BtnVerRota.BackgroundColor3 = Color3.fromRGB(34, 34, 44)
+            removerLinhaDoSlot(slotDados)
+        end
+    end)
+
+    BtnEngrenagem.MouseButton1Click:Connect(function()
+        slotSelecionadoPopup = {dados = slotDados, frameUI = ItemFrame}
+        PopupTitle.Text = 'Config: "' .. slotDados.nome .. '"'
+        BtnKeybind.Text = "Atalho: " .. (slotDados.keybind and slotDados.keybind.Name or "Nenhum")
+        BtnLoopCheck.Text = "Loop: " .. (slotDados.loopAtivo and "ATIVADO ✅" or "DESATIVADO ❌")
+        PopupFrame.Visible = true
+    end)
+end
+
+-- CARREGAR DADOS SALVOS
+task.spawn(function()
+    if readfile and isfile and HttpService and isfile(NOME_PASTA .. "/lista_saves.txt") then
+        local sucesso, conteudo = pcall(function() return readfile(NOME_PASTA .. "/lista_saves.txt") end)
+        if sucesso and conteudo and conteudo ~= "" then
+            local sucessoJson, listaCarregada = pcall(function() return HttpService:JSONDecode(conteudo) end)
+            if sucessoJson and type(listaCarregada) == "table" then
+                for _, slotInfo in ipairs(listaCarregada) do
+                    local kb = nil
+                    if slotInfo.keybindName then pcall(function() kb = Enum.KeyCode[slotInfo.keybindName] end) end
+                    local slotObj = {
+                        id = slotInfo.id,
+                        nome = slotInfo.nome,
+                        dados = slotInfo.dados,
+                        posicaoStart = slotInfo.posicaoStart,
+                        tempoTotal = slotInfo.tempoTotal,
+                        keybind = kb,
+                        loopAtivo = slotInfo.loopAtivo or false,
+                        botaoPlay = nil
+                    }
+                    if slotObj.id >= proximoIdSlot then proximoIdSlot = slotObj.id + 1 end
+                    table.insert(listaSalvados, slotObj)
+                    criarItemLista(slotObj)
+                end
+            end
+        end
+    end
+end)
+
+-- EVENTOS DOS BOTÕES PRINCIPAIS
+BtnGravar.MouseButton1Click:Connect(function()
+    if reproduzindo then 
+        reproduzindo = false 
+        if slotAtivo then slotAtivo.botaoPlay.Text = "▶" end 
+        slotAtivo = nil 
+    end
+    
+    if not gravando then
+        gravacaoTemporaria = {}
+        posicaoInicial = rootPart.Position
+        tempoDecorrido = 0
+        gravando = true
+
+        if slotUltimaTemp then removerLinhaDoSlot(slotUltimaTemp) end
+        exibindoUltimaLinha = false
+        BtnVerUltimaRota.BackgroundColor3 = Color3.fromRGB(36, 36, 48)
+        
+        if gravarEmSlow then
+            aplicarFisicaSlow(true)
+        end
+        
+        BtnGravar.BackgroundColor3 = Color3.fromRGB(210, 50, 50)
+        BtnGravar.Text = "⏹ Parar Gravação"
+        StatusBadge.Text = "REC"
+        StatusBadge.TextColor3 = Color3.fromRGB(255, 90, 90)
+    else
+        gravando = false
+        aplicarFisicaSlow(false)
+        BtnGravar.BackgroundColor3 = Color3.fromRGB(130, 80, 240)
+        BtnGravar.Text = "⏺ Gravar Nova Rota"
+        StatusBadge.Text = "Neutro"
+        StatusBadge.TextColor3 = Color3.fromRGB(160, 160, 170)
+    end
+end)
+
+BtnReproduzir.MouseButton1Click:Connect(function()
+    if #gravacaoTemporaria > 0 and posicaoInicial then
+        local posTable = {posicaoInicial.X, posicaoInicial.Y, posicaoInicial.Z}
+        local slotTemp = {dados = gravacaoTemporaria, posicaoStart = posTable, tempoTotal = tempoDecorrido, botaoPlay = BtnReproduzir, loopAtivo = false}
+        
+        if reproduzindo then
+            reproduzindo = false
+            BtnReproduzir.Text = "▶ Reproduzir ÚLTIMA"
+            StatusBadge.Text = "Neutro"
+            StatusBadge.TextColor3 = Color3.fromRGB(160, 160, 170)
+        else
+            if gravando then
+                gravando = false
+                aplicarFisicaSlow(false)
+                BtnGravar.BackgroundColor3 = Color3.fromRGB(130, 80, 240)
+                BtnGravar.Text = "⏺ Gravar Nova Rota"
+            end
+            
+            tempoDecorrido = 0
+            slotAtivo = slotTemp
+            
+            local destino = Vector3.new(posicaoInicial.X + gravacaoTemporaria[1].offX, posicaoInicial.Y + gravacaoTemporaria[1].offY, posicaoInicial.Z + gravacaoTemporaria[1].offZ)
+            local targetCFrame = CFrame.new(destino) * CFrame.fromEulerAnglesYXZ(0, gravacaoTemporaria[1].rotY, 0)
+
+            BtnReproduzir.Text = "⏳ Movendo..."
+            StatusBadge.Text = "Play"
+            StatusBadge.TextColor3 = Color3.fromRGB(90, 255, 90)
+
+            moverAteInicio(destino, targetCFrame, function()
+                reproduzindo = true
+                BtnReproduzir.Text = "⏸ Parar Reprodução"
+            end)
+        end
+    end
+end)
+
+BtnSalvar.MouseButton1Click:Connect(function()
+    if #gravacaoTemporaria > 0 and posicaoInicial then
+        local dadosClonados = {}
+        for i, v in ipairs(gravacaoTemporaria) do dadosClonados[i] = v end
+        local novoSlot = {
+            id = proximoIdSlot,
+            nome = "Rota " .. proximoIdSlot,
+            dados = dadosClonados,
+            posicaoStart = {posicaoInicial.X, posicaoInicial.Y, posicaoInicial.Z},
+            tempoTotal = tempoDecorrido,
+            keybind = nil,
+            loopAtivo = false,
+            botaoPlay = nil
+        }
+        proximoIdSlot = proximoIdSlot + 1
+        table.insert(listaSalvados, novoSlot)
+        criarItemLista(novoSlot)
+        salvarListaEmArquivo()
+    end
+end)
+
+-- BOTÃO FLUTUANTE COM ÍCONE
+local BtnToggle = Instance.new("ImageButton", sg)
+BtnToggle.Size = UDim2.new(0, 50, 0, 50)
+BtnToggle.Position = UDim2.new(0, 15, 0.5, -18)
+BtnToggle.BackgroundColor3 = Color3.fromRGB(130, 80, 240)
+BtnToggle.Image = "rbxassetid://75911177449995"
+Instance.new("UICorner", BtnToggle).CornerRadius = UDim.new(1, 0)
+
+local ToggleStroke = Instance.new("UIStroke", BtnToggle)
+ToggleStroke.Color = Color3.fromRGB(255, 255, 255)
+ToggleStroke.Thickness = 1.2
+
+BtnToggle.MouseButton1Click:Connect(function()
+    MainFrame.Visible = not MainFrame.Visible
+    if not MainFrame.Visible then fecharPopupConfig() SlowDropdown.Visible = false end
+end)
+
+-- BOTÃO SECRETO INVISÍVEL NO CANTO PARA CELULAR
+local BtnSecreto = Instance.new("TextButton", sg)
+BtnSecreto.Size = UDim2.new(0, 45, 0, 45)
+BtnSecreto.Position = UDim2.new(1, -50, 0, 5)
+BtnSecreto.BackgroundTransparency = 1
+BtnSecreto.Text = ""
+
+BtnSecreto.MouseButton1Click:Connect(function()
+    guiVisivelGeral = not guiVisivelGeral
+    MainFrame.Visible = guiVisivelGeral
+    BtnToggle.Visible = guiVisivelGeral
+end)
+
+local function fazerElementoMovel(instanciaAtivadora, instanciaAlvo)
+    local dragging, dragInput, dragStart, startPos
+    instanciaAtivadora.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = instanciaAlvo.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then dragging = false end
+            end)
+        end
+    end)
+    instanciaAtivadora.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            instanciaAlvo.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+end
+
+fazerElementoMovel(Header, MainFrame)
+fazerElementoMovel(BtnToggle, BtnToggle)
+
+-- COMANDO PARA FECHAR E APAGAR A INTERFACE TOTALMENTE
+local function fecharInterface()
+    sg.Enabled = false
+    sg:Destroy()
+end
+
+local TextChatService = game:GetService("TextChatService")
+pcall(function()
+    local cmdFechar = Instance.new("TextChatCommand")
+    cmdFechar.Name = "fechar"
+    cmdFechar.PrimaryAlias = "/fechar"
+    cmdFechar.SecondaryAlias = "/delete"
+    cmdFechar.Parent = TextChatService
+    
+    cmdFechar.Triggered:Connect(fecharInterface)
+end)
