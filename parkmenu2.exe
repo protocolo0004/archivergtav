@@ -1,0 +1,2052 @@
+-- [[ EB DO DELTA - ZYRONX UI (REESTRUTURAÇÃO COMPLETA) ]] --
+
+local Library = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/princesinho404/unrenomed/refs/heads/main/ZyronX"))()
+
+-- // Whitelist
+Library.WhitelistedUsers = {
+    "Princesinho"
+}
+
+-- // Criação da Janela Principal
+local Window = Library:CreateWindow({
+    Title = "HAVAC MENU",
+    Subtitle = "Versão Premium 1.3.0",
+    SubtitleColor = Color3.fromRGB(190, 140, 255),
+    Logo = "rbxassetid://121574485496082",
+    LogoSize = 40,
+    
+    SphereText = false, 
+    SphereWords = "EB", 
+    SphereImage = "rbxassetid://5013109572",
+    SphereIconSize = 38
+})
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local HttpService = game:GetService("HttpService")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- Variáveis globais do personagem para os Parkours
+local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local rootPart = character:WaitForChild("HumanoidRootPart")
+
+LocalPlayer.CharacterAdded:Connect(function(newChar)
+    character = newChar
+    humanoid = newChar:WaitForChild("Humanoid")
+    rootPart = newChar:WaitForChild("HumanoidRootPart")
+end)
+
+-- ========================================== --
+-- 🏠 TAB 1: HOME
+-- ========================================== --
+local HomeTab = Window:CreateTab("Home", true, false)
+local Home_Page = HomeTab:CreatePage("Informações")
+local InfoCard = Home_Page:CreateSection("Dados do Jogador")
+
+local btnJogador = InfoCard:AddButton("Jogador: " .. LocalPlayer.Name, function() end)
+InfoCard:AddButton("Executor: " .. (identifyexecutor and identifyexecutor() or "Desconhecido"), function() end)
+InfoCard:AddButton("Versão: Premium 1.0.1", function() end)
+InfoCard:AddButton("Desenvolvedor: Princesinho", function() end)
+InfoCard:AddButton("Status: 🟢 Ativo", function() end)
+
+local AppearanceCard = Home_Page:CreateSection("UI Config")
+
+AppearanceCard:AddToggle("Interface transparente", false, function(state) 
+    Window:SetTransparency(state and 0.2 or 0) 
+end, 
+{Title = "Transparência", Description = "Deixa a interface transparente"})
+-- ========================================== --
+-- ⚙️ SERVIÇOS E VARIÁVEIS BASE
+-- ========================================== --
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local HttpService = game:GetService("HttpService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local VIM
+pcall(function() VIM = game:GetService("VirtualInputManager") end)
+
+local player = Players.LocalPlayer
+local LocalPlayer = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local rootPart = character:WaitForChild("HumanoidRootPart")
+
+player.CharacterAdded:Connect(function(newChar)
+    character = newChar
+    humanoid = newChar:WaitForChild("Humanoid")
+    rootPart = newChar:WaitForChild("HumanoidRootPart")
+end)
+
+-- Variáveis do Reprodutor e Animação
+local reproduzindo = false
+local tempoDecorrido = 0
+local slotAtivo = nil
+local delayInicio = 0
+local configSecurity = false -- false = Usa o Dummy Verde, true = Vai direto ao ponto
+local mostrarLinhas = false
+local dummiesAtivos = {} -- Agora armazena {dummy = Instance, conexao = RBXScriptConnection}
+
+local animTrackAtual = nil
+local idAnimTocando = nil
+local cacheAnimacoes = {}
+
+-- ========================================== --
+-- 📂 TAB 2: EB DO DELTA
+-- ========================================== --
+local DeltaTab = Window:CreateTab("EB do Delta", false, false)
+
+-- // PÁGINAS
+local Parkours_Page = DeltaTab:CreatePage("Parkours")
+local Torres_Page = DeltaTab:CreatePage("Torres")
+local Config_Page = DeltaTab:CreatePage("Configurações")
+local Havac_Page = DeltaTab:CreatePage("Automações")
+
+-- Links RAW dos Trajetos (Agora apenas o Grupo A)
+local RAW_URLS = {
+    ["Parkours"] = {
+        ["Parkour 1"] = {
+            ["Lento"] = "https://raw.githubusercontent.com/princesinho404/saves/refs/heads/main/a%20--%20completo/parkour%201/parkour_1_lento.json",
+            ["Rápido"] = "https://raw.githubusercontent.com/princesinho404/saves/refs/heads/main/a%20--%20completo/parkour%201/parkour_1_rapido.json",
+            ["Mais Rápido"] = "https://raw.githubusercontent.com/princesinho404/saves/refs/heads/main/a%20--%20completo/parkour%201/parkour_1_mais_rapido.json",
+            ["Sem Burla"] = "https://raw.githubusercontent.com/princesinho404/saves/refs/heads/main/a%20--%20completo/parkour%201/parkour_1_sem_burla.json"
+        },
+        ["Parkour 2"] = {
+            ["Lento"] = "https://raw.githubusercontent.com/princesinho404/saves/refs/heads/main/a%20--%20completo/parkour%202/parkour_2_lento.json",
+            ["Rápido"] = "https://raw.githubusercontent.com/princesinho404/saves/refs/heads/main/a%20--%20completo/parkour%202/parkour_2_rapido.json",
+            ["Mais Rápido"] = "https://raw.githubusercontent.com/princesinho404/saves/refs/heads/main/a%20--%20completo/parkour%202/parkour_2_mais_rapido.json",
+            ["Sem Burla"] = "https://raw.githubusercontent.com/princesinho404/saves/refs/heads/main/a%20--%20completo/parkour%202/parkour_2_sem_burla.json"
+        },
+        ["Parkour 3"] = {
+            ["Lento"] = "https://raw.githubusercontent.com/princesinho404/saves/refs/heads/main/a%20--%20completo/parkour%203/parkour_3_lento.json",
+            ["Rápido"] = "https://raw.githubusercontent.com/princesinho404/saves/refs/heads/main/a%20--%20completo/parkour%203/parkour_3_rapido.json",
+            ["Mais Rápido"] = "https://raw.githubusercontent.com/princesinho404/saves/refs/heads/main/a%20--%20completo/parkour%203/parkour_3_mais_rapido.json",
+            ["Sem Burla"] = "https://raw.githubusercontent.com/princesinho404/saves/refs/heads/main/a%20--%20completo/parkour%203/parkour_3_sem_burla.json"
+        },
+        ["Parkour 4"] = {
+            ["Lento"] = "https://raw.githubusercontent.com/princesinho404/saves/refs/heads/main/a%20--%20completo/parkour%204/parkour_4_lento.json",
+            ["Rápido"] = "https://raw.githubusercontent.com/princesinho404/saves/refs/heads/main/a%20--%20completo/parkour%204/parkour_4_rapido.json",
+            ["Mais Rápido"] = "https://raw.githubusercontent.com/princesinho404/saves/refs/heads/main/a%20--%20completo/parkour%204/parkour_4_mais_rapido.json",
+            ["Sem Burla"] = "https://raw.githubusercontent.com/princesinho404/saves/refs/heads/main/a%20--%20completo/parkour%204/parkour_4_sem_burla.json"
+        }
+    },
+    ["Torres"] = {
+        ["Torre 1"] = {
+            ["Lento"] = "https://raw.githubusercontent.com/princesinho404/saves/refs/heads/main/torres/torre_1_lento.json",
+            ["Rápido"] = "https://raw.githubusercontent.com/princesinho404/saves/refs/heads/main/torres/torre_1_rapido.json",
+            ["Mais Rápido"] = "https://raw.githubusercontent.com/princesinho404/saves/refs/heads/main/torres/torre_1_mais_rapido.json",
+        },
+        ["Torre 2"] = {
+            ["Frente"] = "https://raw.githubusercontent.com/princesinho404/saves/refs/heads/main/torres/torre_2_lento.json",
+            ["Direita ->"] = "https://raw.githubusercontent.com/princesinho404/saves/refs/heads/main/torres/torre_2_mais_rapido.json",
+            ["Esquerda <-"] = "https://raw.githubusercontent.com/princesinho404/saves/refs/heads/main/torres/torre_2_rapido.json",
+            ["Atrâs"] = "http://raw.githubusercontent.com/princesinho404/saves/refs/heads/main/torres/torre_2_atr%C3%A2s"
+        }
+    }
+}
+
+-- ========================================== --
+-- 🛑 FUNÇÕES DE CAMINHADA E PARADA
+-- ========================================== --
+local function ForcarCaminhada(posAlvoExata, targetCF)
+    local distancia = (rootPart.Position - posAlvoExata).Magnitude
+    if distancia > 1.5 then
+        humanoid:MoveTo(posAlvoExata)
+        local chegou = false
+        local conexao
+        conexao = humanoid.MoveToFinished:Connect(function()
+            chegou = true
+            if conexao then conexao:Disconnect() end
+        end)
+        local inicioEspera = os.clock()
+        local tempoMax = (distancia / 16) + 3 
+        while not chegou and (os.clock() - inicioEspera < tempoMax) do
+            if (rootPart.Position - posAlvoExata).Magnitude <= 1.5 then
+                chegou = true
+                break
+            end
+            task.wait()
+        end
+        if conexao and conexao.Connected then conexao:Disconnect() end
+
+        humanoid.AutoRotate = false
+        rootPart.AssemblyLinearVelocity = Vector3.zero
+        rootPart.AssemblyAngularVelocity = Vector3.zero
+        TweenService:Create(rootPart, TweenInfo.new(0.12, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {CFrame = targetCF}):Play()
+        task.wait(0.12)
+        humanoid.AutoRotate = true
+    else
+        rootPart.CFrame = targetCF
+        task.wait(0.02)
+        rootPart.AssemblyLinearVelocity = Vector3.zero
+        rootPart.AssemblyAngularVelocity = Vector3.zero
+    end
+end
+
+local function pararReproducao()
+    reproduzindo = false
+    slotAtivo = nil
+    
+    if animTrackAtual then
+        animTrackAtual:Stop(0.2)
+        animTrackAtual = nil
+        idAnimTocando = nil
+    end
+    
+    if humanoid then
+        humanoid.WalkSpeed = 16
+        rootPart.AssemblyLinearVelocity = Vector3.zero
+    end
+    
+    if character then
+        local animateScript = character:FindFirstChild("Animate")
+        if animateScript then animateScript.Disabled = false end
+    end
+    
+    if humanoid then
+        humanoid:ChangeState(Enum.HumanoidStateType.Landed)
+    end
+end
+
+local function limparDummies()
+    if type(dummiesAtivos) == "table" then
+        for _, obj in ipairs(dummiesAtivos) do
+            if obj.conexao then obj.conexao:Disconnect() end
+            if obj.dummy and typeof(obj.dummy) == "Instance" then obj.dummy:Destroy() end
+        end
+        table.clear(dummiesAtivos)
+    end
+end
+
+-- ========================================== --
+-- 🔄 LOOP PRINCIPAL DE REPRODUÇÃO (POST-SIMULATION)
+-- ========================================== --
+RunService.PostSimulation:Connect(function(deltaTime)
+    if reproduzindo and slotAtivo and rootPart and humanoid then
+        tempoDecorrido = tempoDecorrido + deltaTime
+        local historico = slotAtivo.dados
+        local dadosAlvo = historico[1] 
+        
+        for i = #historico, 1, -1 do
+            if historico[i].tempo <= tempoDecorrido then 
+                dadosAlvo = historico[i] 
+                break 
+            end
+        end
+        
+        local tempoFinal = slotAtivo.tempoTotal or historico[#historico].tempo
+        
+        if tempoDecorrido >= tempoFinal then
+            pararReproducao()
+            Library:Notify({Title = "Parkour", Description = "Trajeto Concluído!", Duration = 3})
+        else
+            rootPart.AssemblyLinearVelocity = Vector3.new(dadosAlvo.velX, dadosAlvo.velY, dadosAlvo.velZ)
+            rootPart.AssemblyAngularVelocity = Vector3.zero
+            
+            local posX = slotAtivo.posicaoStart[1] + dadosAlvo.offX
+            local posY = slotAtivo.posicaoStart[2] + dadosAlvo.offY
+            local posZ = slotAtivo.posicaoStart[3] + dadosAlvo.offZ
+            
+            rootPart.CFrame = CFrame.new(posX, posY, posZ) * CFrame.fromEulerAnglesYXZ(0, dadosAlvo.rotY, 0)
+            
+            pcall(function()
+                if dadosAlvo.estado then
+                    local stEnum = type(dadosAlvo.estado) == "string" and Enum.HumanoidStateType[dadosAlvo.estado] or (type(dadosAlvo.estado) == "number" and Enum.HumanoidStateType:GetEnumItems()[dadosAlvo.estado + 1])
+                    if stEnum and humanoid:GetState() ~= stEnum then 
+                        humanoid:ChangeState(stEnum) 
+                    end
+                end
+            end)
+            
+            -- CROSSFADE SUAVE DE ANIMAÇÕES
+            if dadosAlvo.animId and dadosAlvo.animId ~= "" then
+                if idAnimTocando ~= dadosAlvo.animId then
+                    idAnimTocando = dadosAlvo.animId
+                    local novaTrack = cacheAnimacoes[dadosAlvo.animId]
+                    if novaTrack then
+                        pcall(function()
+                            local animator = humanoid:FindFirstChildOfClass("Animator") or Instance.new("Animator", humanoid)
+                            if animator then
+                                for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+                                    if track ~= novaTrack then
+                                        track:Stop(0.15)
+                                    end
+                                end
+                            end
+                        end)
+                        
+                        novaTrack.Priority = Enum.AnimationPriority.Action4
+                        novaTrack:AdjustWeight(1)
+                        if not novaTrack.IsPlaying then
+                            novaTrack:Play(0.15)
+                        end
+                        animTrackAtual = novaTrack
+                    end
+                end
+            end
+        end
+    end
+end)
+
+-- ========================================== --
+-- 🧍 LÓGICA DE INÍCIO COM DUMMY E REPRODUÇÃO
+-- ========================================== --
+local function iniciarTrajetoHavac(slot)
+    if not slot or not slot.dados or #slot.dados == 0 then
+        Library:Notify({Title = "Erro", Description = "Sem dados na rota!", Duration = 3})
+        return 
+    end
+    
+    reproduzindo = false
+    task.wait(0.05)
+    
+    -- Prepara o Cache de Animações
+    pcall(function()
+        local animator = humanoid:FindFirstChildOfClass("Animator") or Instance.new("Animator", humanoid)
+        if animator then
+            for _, frame in ipairs(slot.dados) do
+                if frame.animId and frame.animId ~= "" and not cacheAnimacoes[frame.animId] then
+                    local novaAnim = Instance.new("Animation")
+                    novaAnim.AnimationId = frame.animId
+                    cacheAnimacoes[frame.animId] = animator:LoadAnimation(novaAnim)
+                end
+            end
+        end
+    end)
+
+    -- Remove Animate padrão para evitar travamentos
+    local animateScript = character:FindFirstChild("Animate")
+    if animateScript then animateScript:Destroy() end
+
+    local pStart = slot.posicaoStart or {rootPart.Position.X, rootPart.Position.Y, rootPart.Position.Z}
+    local pPrimeiro = slot.dados[1]
+    local posAlvoExata = Vector3.new(pStart[1] + pPrimeiro.offX, pStart[2] + pPrimeiro.offY, pStart[3] + pPrimeiro.offZ)
+    local targetCF = CFrame.new(posAlvoExata) * CFrame.fromEulerAnglesYXZ(0, pPrimeiro.rotY, 0)
+    local dist = (rootPart.Position - posAlvoExata).Magnitude
+
+    if animTrackAtual then
+        animTrackAtual:Stop(0.2)
+        animTrackAtual = nil
+        idAnimTocando = nil
+    end
+
+    if configSecurity then
+        -- MODINHO DIRETO: Define o slot e teleporta/anda direto
+        slotAtivo = slot
+        tempoDecorrido = 0
+        idAnimTocando = nil
+        
+        local velAtual = humanoid.WalkSpeed
+        humanoid.WalkSpeed = 16
+        if dist > 1.2 and dist < 35 then
+            local moveAnim = Instance.new("Animation")
+            moveAnim.AnimationId = (velAtual >= 16) and "rbxassetid://507766388" or "rbxassetid://180436148"
+            local animator = humanoid:FindFirstChildOfClass("Animator") or Instance.new("Animator", humanoid)
+            local moveTrack = animator:LoadAnimation(moveAnim)
+            moveTrack:Play()
+
+            humanoid:MoveTo(posAlvoExata - Vector3.new(0, (humanoid and humanoid.HipHeight) and (humanoid.HipHeight + (rootPart.Size.Y / 2)) or 3.0, 0))
+            local t0 = os.clock()
+            while (Vector3.new(rootPart.Position.X, 0, rootPart.Position.Z) - Vector3.new(posAlvoExata.X, 0, posAlvoExata.Z)).Magnitude > 1.2 and (os.clock() - t0) < 2.5 do 
+                task.wait() 
+            end
+            if moveTrack then moveTrack:Stop() end
+            
+            humanoid:MoveTo(rootPart.Position)
+            rootPart.AssemblyLinearVelocity, rootPart.AssemblyAngularVelocity, humanoid.AutoRotate = Vector3.zero, Vector3.zero
+            TweenService:Create(rootPart, TweenInfo.new(0.2, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {CFrame = targetCF}):Play()
+            task.wait(0.2)
+            humanoid.AutoRotate = true
+        else
+            character:PivotTo(targetCF)
+        end
+        humanoid.WalkSpeed = velAtual
+        
+        if delayInicio > 0 then task.wait(delayInicio) end
+        task.defer(function() reproduzindo = true end)
+        Library:Notify({Title = "Parkour", Description = "Reproduzindo Trajeto!", Duration = 3})
+    else
+        -- MODO DUMMY VERDE
+        Library:Notify({Title = "Parkour", Description = "Vá até o DUMMY VERDE brilhante!", Duration = 3})
+        
+        local dummy = nil
+        pcall(function()
+            character.Archivable = true
+            dummy = character:Clone()
+            character.Archivable = false
+            
+            for _, v in ipairs(dummy:GetDescendants()) do
+                if v:IsA("Script") or v:IsA("LocalScript") or v:IsA("ModuleScript") then
+                    v:Destroy()
+                end
+            end
+            
+            for _, v in ipairs(dummy:GetDescendants()) do
+                if v:IsA("BasePart") then
+                    v.Material = Enum.Material.ForceField
+                    v.Color = Color3.fromRGB(0, 255, 0)
+                    v.CanCollide = false
+                    v.CanTouch = false
+                    v.Anchored = true
+                end
+            end
+            
+            local offsetChao = Vector3.new(0, 1.5, 0) 
+            local posicaoCorrigida = targetCF + offsetChao
+            dummy:PivotTo(posicaoCorrigida)
+            
+            local parteReferencia = dummy:FindFirstChild("Head") or dummy:FindFirstChild("HumanoidRootPart")
+            if parteReferencia then
+                local billboard = Instance.new("BillboardGui")
+                billboard.Name = "ExclamacaoWaypoint"
+                billboard.Size = UDim2.new(0, 50, 0, 50)
+                billboard.StudsOffset = Vector3.new(0, 2.5, 0)
+                billboard.AlwaysOnTop = true
+                billboard.Adornee = parteReferencia
+                
+                local textLabel = Instance.new("TextLabel")
+                textLabel.Size = UDim2.new(1, 0, 1, 0)
+                textLabel.BackgroundTransparency = 1
+                textLabel.Text = "!"
+                textLabel.TextColor3 = Color3.fromRGB(255, 230, 0)
+                textLabel.TextScaled = true
+                textLabel.Font = Enum.Font.FredokaOne
+                
+                local uiStroke = Instance.new("UIStroke")
+                uiStroke.Thickness = 3
+                uiStroke.Color = Color3.fromRGB(0, 0, 0)
+                uiStroke.Parent = textLabel
+                
+                textLabel.Parent = billboard
+                billboard.Parent = dummy
+            end
+            
+            dummy.Parent = workspace
+        end)
+
+        local conectado = nil
+        local chegou = false
+        
+        local function iniciarCaminhadaSuave()
+            if chegou then return end
+            chegou = true
+            
+            -- Limpa todos os outros dummies criados antes de iniciar esta rota específica
+            local dummyTemporario = dummy
+            limparDummies() 
+            
+            -- APENAS AGORA define que ESTA é a rota oficial que vai ser tocada
+            slotAtivo = slot
+            tempoDecorrido = 0
+            idAnimTocando = nil
+            
+            local velAtual = humanoid.WalkSpeed; humanoid.WalkSpeed = 16
+            
+            local moveAnim = Instance.new("Animation")
+            moveAnim.AnimationId = (velAtual >= 16) and "rbxassetid://507766388" or "rbxassetid://180436148"
+            local animator = humanoid:FindFirstChildOfClass("Animator") or Instance.new("Animator", humanoid)
+            local moveTrack = animator:LoadAnimation(moveAnim)
+            moveTrack:Play()
+
+            humanoid:MoveTo(posAlvoExata)
+            
+            local t0 = os.clock()
+            while (Vector3.new(rootPart.Position.X, 0, rootPart.Position.Z) - Vector3.new(posAlvoExata.X, 0, posAlvoExata.Z)).Magnitude > 1.2 and (os.clock() - t0) < 2.5 do
+                task.wait()
+            end
+            if moveTrack then moveTrack:Stop() end
+            
+            humanoid:MoveTo(rootPart.Position)
+            rootPart.AssemblyLinearVelocity, rootPart.AssemblyAngularVelocity = Vector3.zero, Vector3.zero
+            TweenService:Create(rootPart, TweenInfo.new(0.2, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {CFrame = targetCF}):Play()
+            task.wait(0.2)
+            humanoid.AutoRotate = true
+            humanoid.WalkSpeed = velAtual
+            
+            if delayInicio > 0 then task.wait(delayInicio) end
+            task.defer(function() reproduzindo = true end)
+            Library:Notify({Title = "Parkour", Description = "Reproduzindo Trajeto!", Duration = 3})
+        end
+
+        -- Monitoramento individual deste Dummy
+        conectado = RunService.Heartbeat:Connect(function()
+            if not character or not rootPart or reproduzindo then return end
+            
+            local posPlayerPlana = Vector3.new(rootPart.Position.X, 0, rootPart.Position.Z)
+            local posAlvoPlana = Vector3.new(posAlvoExata.X, 0, posAlvoExata.Z)
+            local distanciaHorizontal = (posPlayerPlana - posAlvoPlana).Magnitude
+            
+            -- DISTÂNCIA DIMINUÍDA PARA 1.5
+            if distanciaHorizontal <= 1.5 and not chegou then
+                iniciarCaminhadaSuave()
+            end
+        end)
+
+        -- Armazena o dummy E a conexão na tabela para limparmos direito depois
+        table.insert(dummiesAtivos, {
+            dummy = dummy,
+            conexao = conectado
+        })
+    end
+end
+
+-- ========================================== --
+-- 🌐 SISTEMA DE CACHE E EXECUÇÃO RAW
+-- ========================================== --
+local cacheRotas = {}
+
+task.spawn(function()
+    for catName, categoria in pairs(RAW_URLS) do
+        for identifier, versoes in pairs(categoria) do
+            for versao, url in pairs(versoes) do
+                if url and url ~= "" and url:sub(1, 4) == "http" then
+                    task.spawn(function()
+                        local s, r = pcall(function() return game:HttpGet(url) end)
+                        if s and r and r ~= "" then
+                            local sJson, dJson = pcall(function() return HttpService:JSONDecode(r) end)
+                            if sJson and dJson then
+                                if type(dJson) == "table" and dJson[1] and dJson[1].dados then 
+                                    dJson = dJson[1] 
+                                end
+                                local cacheKey = catName .. "_" .. identifier .. "_" .. versao
+                                cacheRotas[cacheKey] = dJson
+                            end
+                        end
+                    end)
+                end
+            end
+        end
+    end
+end)
+
+local function executarRota(categoria, identifier, versao)
+    if reproduzindo then
+        pararReproducao()
+        Library:Notify({Title = "Parado", Description = "Reprodução cancelada.", Duration = 3})
+        return
+    end
+
+    local cacheKey = categoria .. "_" .. identifier .. "_" .. versao
+    
+    if cacheRotas[cacheKey] then
+        Library:Notify({Title = "Sucesso", Description = "Iniciando trajeto instantaneamente!", Duration = 2})
+        iniciarTrajetoHavac(cacheRotas[cacheKey])
+        return
+    end
+
+    local url = ""
+    if categoria == "Parkours" then
+        url = RAW_URLS["Parkours"][identifier] and RAW_URLS["Parkours"][identifier][versao]
+    else
+        url = RAW_URLS["Torres"][identifier] and RAW_URLS["Torres"][identifier][versao]
+    end
+
+    if not url or url == "" or url:sub(1, 4) ~= "http" then
+        Library:Notify({Title = "Erro", Description = "URL RAW não configurada para esta versão.", Duration = 3})
+        return
+    end
+
+    Library:Notify({Title = "Carregando", Description = "Baixando dados RAW...", Duration = 3})
+
+    task.spawn(function()
+        local sucesso, resposta = pcall(function()
+            return game:HttpGet(url)
+        end)
+
+        if sucesso and resposta and resposta ~= "" then
+            local jsonSucesso, dadosSlot = pcall(function()
+                return HttpService:JSONDecode(resposta)
+            end)
+
+            if jsonSucesso and dadosSlot then
+                if type(dadosSlot) == "table" and dadosSlot[1] and dadosSlot[1].dados then
+                    dadosSlot = dadosSlot[1]
+                end
+                cacheRotas[cacheKey] = dadosSlot 
+                iniciarTrajetoHavac(dadosSlot)
+            else
+                Library:Notify({Title = "Erro", Description = "JSON malformatado ou inválido.", Duration = 3})
+            end
+        else
+            Library:Notify({Title = "Erro", Description = "Falha ao conectar no RAW.", Duration = 3})
+        end
+    end)
+end
+
+-- ========================================== --
+-- 🎨 SEÇÕES E ELEMENTOS DE PARKOUR NA UI
+-- ========================================== --
+local listaVersoes = {"Lento", "Rápido", "Mais Rápido", "Sem Burla"}
+local velocidadesParkour = {
+    ["Parkour 1"] = "Lento",
+    ["Parkour 2"] = "Lento",
+    ["Parkour 3"] = "Lento",
+    ["Parkour 4"] = "Lento"
+}
+
+for i = 1, 4 do
+    local nomeParkour = "Parkour " .. i
+    local Section = Parkours_Page:CreateSection(nomeParkour)
+    
+    Section:AddDropdown("Velocidade", listaVersoes, false, function(v)
+        velocidadesParkour[nomeParkour] = v
+    end, { Title = "Estilo/Velocidade" })
+    
+    Section:AddButton("Iniciar " .. nomeParkour, function()
+        executarRota("Parkours", nomeParkour, velocidadesParkour[nomeParkour])
+    end)
+end
+
+-- ========================================== --
+-- 🏰 SEÇÕES E ELEMENTOS DE TORRES NA UI
+-- ========================================== --
+local opcoesTorre1 = {"Lento", "Rápido", "Mais Rápido"}
+local opcoesTorre2 = {"Frente", "Direita ->", "Esquerda <-", "Atrâs"}
+
+local T1Card = Torres_Page:CreateSection("Torre 1")
+local versaoTorre1 = "Lento"
+
+T1Card:AddDropdown("Versão", opcoesTorre1, false, function(v)
+    versaoTorre1 = v
+end, { Title = "Selecione a Versão" })
+
+T1Card:AddButton("Iniciar Torre 1", function()
+    executarRota("Torres", "Torre 1", versaoTorre1)
+end)
+
+local T2Card = Torres_Page:CreateSection("Torre 2")
+local versaoTorre2 = "Frente"
+
+T2Card:AddDropdown("Versão", opcoesTorre2, false, function(v)
+    versaoTorre2 = v
+end, { Title = "Selecione a Direção" })
+
+T2Card:AddButton("Iniciar Torre 2", function()
+    executarRota("Torres", "Torre 2", versaoTorre2)
+end)
+
+-- ========================================== --
+-- ⚙️ INTERFACE: CONFIGURAÇÕES (NOVA TAB)
+-- ========================================== --
+local C1Card = Config_Page:CreateSection("Geral")
+
+C1Card:AddToggle("Desativar Dummies (Ir Direto/MoveTo)", false, function(value)
+    configSecurity = value
+end)
+
+C1Card:AddToggle("Mostrar Linhas (Apenas Parkour)", false, function(value)
+    mostrarLinhas = value
+    if type(dummiesAtivos) == "table" then
+        for _, obj in pairs(dummiesAtivos) do
+            -- Adaptado para a nova estrutura {dummy=..., conexao=...}
+            if type(obj) == "table" and obj.linesFolder then
+                for _, part in ipairs(obj.linesFolder:GetChildren()) do
+                    if part:IsA("Part") then part.Transparency = value and 0.5 or 1 end
+                end
+            end
+        end
+    end
+end)
+
+C1Card:AddButton("Limpar Dummies e Rotas Pendentes", function()
+    limparDummies()
+    if reproduzindo then
+        pararReproducao()
+    end
+    Library:Notify({Title = "Limpo", Description = "Todos os Dummies e rotas foram cancelados.", Duration = 3})
+end)
+-- ========================================== --
+-- 🧠 MOTOR LÓGICO E UI: AUTO JJS (POLICHINELOS)
+-- ========================================== --
+local quantidadeMaxima = 0 
+local autoJJSEnabled = false
+local delaySegundos = 0.53
+local keyMap = { Q = Enum.KeyCode.Q, E = Enum.KeyCode.E }
+
+local function dispararTecla(keycode)
+    pcall(function()
+        if not VIM then return end
+        VIM:SendKeyEvent(true, keycode, false, game)
+        task.wait(0.05)
+        VIM:SendKeyEvent(false, keycode, false, game)
+    end)
+end
+
+local function cliqueVirtualFisico(button)
+    if not button then return end
+    pcall(function()
+        firesignal(button.MouseButton1Down)
+        firesignal(button.MouseButton1Click)
+        firesignal(button.TouchTap)
+        button:Activate()
+        if VIM then
+            local x = button.AbsolutePosition.X + (button.AbsoluteSize.X / 2)
+            local y = button.AbsolutePosition.Y + (button.AbsoluteSize.Y / 2)
+            VIM:SendMouseButtonEvent(x, y, 0, true, game, 1)
+            task.wait(0.05)
+            VIM:SendMouseButtonEvent(x, y, 0, false, game, 1)
+        end
+    end)
+end
+
+local function pegarJJSAtual()
+    local char = LocalPlayer.Character
+    if char and char:FindFirstChild("Head") then
+        for _, v in ipairs(char.Head:GetChildren()) do
+            if v:IsA("BillboardGui") and (v.Name:lower():find("poli") or v.Name:lower():find("jjs") or v.Name:lower():find("texto")) then
+                local label = v:FindFirstChildOfClass("TextLabel")
+                if label and label.Text then
+                    local numStr = string.match(label.Text, "%d+")
+                    if numStr then return tonumber(numStr) end
+                end
+            end
+        end
+    end
+    return -1 
+end
+
+local JjsCard = Havac_Page:CreateSection("Auto JJS")
+
+JjsCard:AddToggle("Ativar Auto JJS", false, function(state)
+    autoJJSEnabled = state
+    if autoJJSEnabled then
+        local metaAlvo = (quantidadeMaxima > 0) and quantidadeMaxima or math.huge
+        Library:Notify({Title = "Auto JJS", Description = "Iniciado. Lendo valor da cabeça!", Duration = 3})
+
+        task.spawn(function()
+            local processados = {}
+            local countProc = 0
+            
+            while autoJJSEnabled do
+                local jjsReal = pegarJJSAtual()
+                
+                if metaAlvo ~= math.huge and jjsReal >= metaAlvo then
+                    autoJJSEnabled = false
+                    Library:Notify({Title = "Concluído", Description = "Você atingiu o limite de " .. metaAlvo .. " JJS!", Duration = 4})
+                    break
+                end
+                
+                pcall(function()
+                    local screen = LocalPlayer:FindFirstChild("PlayerGui") and LocalPlayer.PlayerGui:FindFirstChild("Polichinelos") and LocalPlayer.PlayerGui.Polichinelos:FindFirstChild("Screen")
+                    if screen and autoJJSEnabled then
+                        for _, botao in ipairs(screen:GetChildren()) do
+                            if botao:IsA("ImageButton") and botao.Visible and not processados[botao] then
+                                local label = botao:FindFirstChildWhichIsA("TextLabel")
+                                if label and label.Text and label.Text ~= "" then
+                                    local textoLetra = tostring(label.Text):upper():gsub("%s+", "")
+                                    processados[botao] = true
+                                    countProc = countProc + 1
+                                    
+                                    if keyMap[textoLetra] then dispararTecla(keyMap[textoLetra]) else cliqueVirtualFisico(botao) end
+                                    
+                                    local remote = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("Polichinelos")
+                                    if remote then remote:FireServer("Add", 1) end
+
+                                    task.wait(delaySegundos)
+                                    break
+                                end
+                            end
+                        end
+                    end
+                end)
+                
+                if countProc > 15 then 
+                    table.clear(processados)
+                    countProc = 0 
+                end
+                task.wait(0.1)
+            end
+        end)
+    else
+        Library:Notify({Title = "Auto JJS", Description = "Pausado.", Duration = 3})
+    end
+end, { Title = "Status do JJS" })
+
+JjsCard:AddTextbox("Quantidade Limite Exata", "Ex: 308", function(text)
+    local num = tonumber(text)
+    if num and num > 0 then
+        quantidadeMaxima = num
+        Library:Notify({Title = "Limite Exato", Description = "O robô vai parar ao chegar em " .. num, Duration = 3})
+    else
+        quantidadeMaxima = 0
+        Library:Notify({Title = "Configuração", Description = "Modo INFINITO ativado!", Duration = 3})
+    end
+end, { Title = "Parar JJS quando atingir:" })
+
+JjsCard:AddSlider("Delay", 53, 200, 53, function(val) delaySegundos = math.max(val, 53) / 100 end, { Title = "Atraso (ms)" })
+-- ========================================== --
+-- 🧠 MOTOR LÓGICO 3: AUTO FARM E MISSÕES (MICRO-TP UNDERGROUND)
+-- ========================================== --
+local farmAtivo = false
+local modoSelecionado = "None"
+local farmTrofeuRunning = false
+local autoMissaoAtivo = false
+local posicaoInicialMissao = nil
+local conexaoCamera = nil
+
+-- Profundidade enquanto aguarda/se aproxima (número negativo = debaixo do chão)
+local OFFSET_Y = -6 
+
+local function configurarPrompt(prompt)
+    if prompt:IsA("ProximityPrompt") then
+        if prompt.HoldDuration > 0 then prompt.HoldDuration = 0 end
+        prompt.RequiresLineOfSight = false
+        prompt.MaxActivationDistance = 30
+    end
+end
+
+local function zerarVelocidade(hrp)
+    if hrp then
+        hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+        hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+    end
+end
+
+-- Função central do Micro-Teleporte:
+-- Fica embaixo -> sobe por milissegundos -> coleta -> volta pra baixo
+local function executarColetaMicroTP(hrp, alvoPos, prompt)
+    if not prompt or not prompt.Enabled then return false end
+    
+    configurarPrompt(prompt)
+    zerarVelocidade(hrp)
+    
+    -- 1. Posiciona debaixo do chão próximo ao item
+    hrp.CFrame = CFrame.new(alvoPos + Vector3.new(0, OFFSET_Y, 0))
+    task.wait(0.05)
+    
+    -- 2. Micro-TP instantâneo para cima da superfície
+    hrp.CFrame = CFrame.new(alvoPos + Vector3.new(0, 2, 0))
+    task.wait(0.04)
+    
+    -- 3. Aciona a coleta no servidor
+    if fireproximityprompt and prompt.Enabled then
+        fireproximityprompt(prompt)
+    end
+    
+    task.wait(0.04)
+    
+    -- 4. Retorna para debaixo do chão
+    hrp.CFrame = CFrame.new(alvoPos + Vector3.new(0, OFFSET_Y, 0))
+    zerarVelocidade(hrp)
+    return true
+end
+
+local function travarCameraCima()
+    if conexaoCamera then conexaoCamera:Disconnect() end
+    Camera.CameraType = Enum.CameraType.Scriptable
+    conexaoCamera = RunService.RenderStepped:Connect(function()
+        local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then Camera.CFrame = CFrame.new(hrp.Position + Vector3.new(0, 15, 0), hrp.Position) end
+    end)
+end
+
+local function restaurarCamera()
+    if conexaoCamera then conexaoCamera:Disconnect() end
+    conexaoCamera = nil
+    Camera.CameraType = Enum.CameraType.Custom
+end
+
+local function temFerramenta(nome)
+    local char = LocalPlayer.Character
+    local bp = LocalPlayer.Backpack
+    if char and bp then
+        if char:FindFirstChild(nome) then return true end
+        local f = bp:FindFirstChild(nome)
+        if f then
+            f.Parent = char
+            task.wait(0.1)
+            return true
+        end
+    end
+    return false
+end
+
+local function pegarFoice()
+    if temFerramenta("Foice") then return true end
+    local char = LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    
+    if hrp then
+        local posFoice = Vector3.new(-355, 3, -625)
+        hrp.CFrame = CFrame.new(posFoice + Vector3.new(0, 2, 0))
+        task.wait(0.5)
+        
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            if obj:IsA("ProximityPrompt") and obj.Enabled then
+                local partePai = obj.Parent
+                if partePai and partePai:IsA("BasePart") then
+                    if (partePai.Position - posFoice).Magnitude < 10 then
+                        configurarPrompt(obj)
+                        if fireproximityprompt then fireproximityprompt(obj) end
+                        task.wait(0.5)
+                        break
+                    end
+                end
+            end
+        end
+    end
+    return temFerramenta("Foice")
+end
+
+local function obterTrofeusColetaveis()
+    local lista = {}
+    pcall(function()
+        local pasta = workspace:FindFirstChild("Map") and workspace.Map.Sistemas:FindFirstChild("Miss\195\163o") and workspace.Map.Sistemas["Miss\195\163o"]:FindFirstChild("Trof\195\169us")
+        if pasta then
+            for i = 1, 10 do
+                local t = pasta:FindFirstChild("Trof\195\169u" .. i) or pasta:FindFirstChild("Trofeu" .. i)
+                if t then
+                    local prompt = t:FindFirstChildWhichIsA("ProximityPrompt", true)
+                    if prompt and prompt.Enabled then table.insert(lista, t) end
+                end
+            end
+        end
+    end)
+    return lista
+end
+
+local function iniciarAutoMissao()
+    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if hrp then posicaoInicialMissao = hrp.CFrame end
+    travarCameraCima()
+    
+    task.spawn(function()
+        while autoMissaoAtivo do
+            local mData = LocalPlayer:FindFirstChild("Miss\195\181esData") or LocalPlayer:FindFirstChild("MissoesData")
+            if not mData then break end
+            
+            local mAtual = mData:FindFirstChild("Miss\195\163oAtual")
+            if not mAtual then break end
+            
+            local nomeMissao = string.lower(mAtual.Value)
+            local vTrofeu = mData:FindFirstChild("Trof\195\169us") and mData["Trof\195\169us"].Value or 0
+            local vGrama = mData:FindFirstChild("GramasCortadas") and mData.GramasCortadas.Value or 0
+            local vLixo = mData:FindFirstChild("LixosRecolhidos") and mData.LixosRecolhidos.Value or 0
+            
+            local metaGrama, metaLixo, metaTrofeu = 150, 150, 10
+            if string.find(nomeMissao, "pra\195\167a") then metaGrama = 30; metaLixo = 15; metaTrofeu = 0
+            elseif string.find(nomeMissao, "diretor") then metaGrama = 100; metaLixo = 40; metaTrofeu = 5 end
+            
+            local executouAcao = false
+            local charAtual = LocalPlayer.Character
+            local hrpAtual = charAtual and charAtual:FindFirstChild("HumanoidRootPart")
+            
+            if hrpAtual then
+                if metaTrofeu > 0 and vTrofeu < metaTrofeu then
+                    executouAcao = true
+                    local listaTrofeus = obterTrofeusColetaveis()
+                    if #listaTrofeus > 0 then
+                        local t = listaTrofeus[1]
+                        local prompt = t:FindFirstChildWhichIsA("ProximityPrompt", true)
+                        executarColetaMicroTP(hrpAtual, t.Position, prompt)
+                    end
+                elseif metaGrama > 0 and vGrama < metaGrama then
+                    executouAcao = true
+                    pegarFoice()
+                    local gramasPasta = workspace:FindFirstChild("Map") and workspace.Map.Sistemas.Jobs["Cortar Grama"].Gramas
+                    if gramasPasta then
+                        for _, grama in ipairs(gramasPasta:GetChildren()) do
+                            local prompt = grama:FindFirstChildWhichIsA("ProximityPrompt", true)
+                            if prompt and prompt.Enabled then
+                                local alvo = grama:IsA("BasePart") and grama or grama:FindFirstChildWhichIsA("BasePart")
+                                if alvo and alvo.Transparency < 0.9 then
+                                    executarColetaMicroTP(hrpAtual, alvo.Position, prompt)
+                                    break
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            if not executouAcao then break end
+            task.wait(0.1)
+        end
+        autoMissaoAtivo = false
+        restaurarCamera()
+        if posicaoInicialMissao and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = posicaoInicialMissao
+        end
+    end)
+end
+
+local function iniciarColetaTrofeus()
+    farmTrofeuRunning = true
+    task.spawn(function()
+        local validos = obterTrofeusColetaveis()
+        for _, trofeu in ipairs(validos) do
+            local prompt = trofeu:FindFirstChildWhichIsA("ProximityPrompt", true)
+            local alvo = trofeu:IsA("BasePart") and trofeu or trofeu:FindFirstChildWhichIsA("BasePart")
+            local char = LocalPlayer.Character
+            if prompt and prompt.Enabled and alvo and char and char:FindFirstChild("HumanoidRootPart") then
+                executarColetaMicroTP(char.HumanoidRootPart, alvo.Position, prompt)
+                task.wait(0.2)
+            end
+        end
+        farmTrofeuRunning = false
+    end)
+end
+
+local function farmarGrama(hrp)
+    if not pegarFoice() then return false end
+    local gramasPasta = workspace:FindFirstChild("Map") and workspace.Map.Sistemas.Jobs["Cortar Grama"].Gramas
+    if gramasPasta then
+        for _, grama in ipairs(gramasPasta:GetChildren()) do
+            local prompt = grama:FindFirstChildWhichIsA("ProximityPrompt", true)
+            local alvo = grama:IsA("BasePart") and grama or grama:FindFirstChildWhichIsA("BasePart")
+            
+            if alvo and alvo.Transparency < 0.9 and prompt and prompt.Enabled then
+                return executarColetaMicroTP(hrp, alvo.Position, prompt)
+            end
+        end
+    end
+    return false
+end
+
+local function farmarLixo(hrp, char)
+    local jobLixo = workspace:FindFirstChild("Map") and workspace.Map.Sistemas.Jobs["Recolher Lixo"]
+    local lixoPasta = jobLixo and jobLixo:FindFirstChild("Lixos")
+    local lixeirasPasta = jobLixo and jobLixo:FindFirstChild("Lixeiras")
+    
+    local temLixoInventario = (char:FindFirstChild("Lixo") or LocalPlayer.Backpack:FindFirstChild("Lixo"))
+    
+    if temLixoInventario and lixeirasPasta then
+        local lixeiraAlvo = lixeirasPasta:FindFirstChildWhichIsA("BasePart", true)
+        if lixeiraAlvo then
+            temFerramenta("Lixo")
+            local prompt = lixeiraAlvo:FindFirstChildWhichIsA("ProximityPrompt", true)
+            return executarColetaMicroTP(hrp, lixeiraAlvo.Position, prompt)
+        end
+    elseif lixoPasta then
+        for _, lixo in ipairs(lixoPasta:GetChildren()) do
+            if lixo.Name == "Lixo" then
+                local prompt = lixo:FindFirstChildWhichIsA("ProximityPrompt", true)
+                local alvo = lixo:IsA("BasePart") and lixo or lixo:FindFirstChildWhichIsA("BasePart")
+                
+                if alvo and prompt and prompt.Enabled then
+                    return executarColetaMicroTP(hrp, alvo.Position, prompt)
+                end
+            end
+        end
+    end
+    return false
+end
+
+local function iniciarFarmContinuo()
+    task.spawn(function()
+        local turnoAmbos = true 
+        
+        while farmAtivo do
+            local char = LocalPlayer.Character
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            if not hrp then task.wait(0.5) continue end
+
+            if modoSelecionado == "Coletar Grama" then
+                farmarGrama(hrp)
+                task.wait(0.3)
+                
+            elseif modoSelecionado == "Coletar Lixo" then
+                farmarLixo(hrp, char)
+                task.wait(0.3)
+                
+            elseif modoSelecionado == "Ambos (Mesclado)" then
+                if turnoAmbos then
+                    farmarGrama(hrp)
+                else
+                    farmarLixo(hrp, char)
+                end
+                turnoAmbos = not turnoAmbos 
+                task.wait(0.15) 
+            end
+        end
+    end)
+end
+
+-- ========================================== --
+-- 🖥️ UI: AUTO FARM CARD
+-- ========================================== --
+local AutoFarmCard = Havac_Page:CreateSection("Auto Farm")
+
+AutoFarmCard:AddToggle("Ativar Auto Quest", false, function(state)
+    autoMissaoAtivo = state
+    if autoMissaoAtivo then
+        Library:Notify({ Title = "Auto Quest", Description = "Iniciando a missão automaticamente...", Duration = 3 })
+        iniciarAutoMissao()
+    else
+        Library:Notify({ Title = "Auto Quest", Description = "Parado.", Duration = 3 })
+    end
+end, { Title = "Faz sua missão atual sozinho" })
+
+AutoFarmCard:AddButton("Coletar Todos os Troféus", function()
+    if not farmTrofeuRunning then
+        Library:Notify({ Title = "Troféus", Description = "Coletando troféus com Micro-TP...", Duration = 3 })
+        iniciarColetaTrofeus()
+    else
+        Library:Notify({ Title = "Aviso", Description = "Os troféus já estão sendo coletados!", Duration = 3 })
+    end
+end)
+
+AutoFarmCard:AddDropdown("Tipo de Coleta", {"Coletar Lixo", "Coletar Grama", "Ambos (Mesclado)"}, false, function(selected)
+    modoSelecionado = selected
+    if farmAtivo then
+        farmAtivo = false
+        task.wait(0.3)
+        farmAtivo = true
+        iniciarFarmContinuo()
+    end
+end, { Title = "Opção de Coleta" })
+
+AutoFarmCard:AddToggle("Ativar Auto Farm", false, function(state)
+    farmAtivo = state
+    if farmAtivo then
+        if modoSelecionado == "None" or not modoSelecionado then
+            Library:Notify({ Title = "Erro", Description = "Selecione o Tipo de Coleta primeiro!", Duration = 3 })
+            farmAtivo = false
+            return
+        end
+        Library:Notify({ Title = "Farm", Description = "Iniciado: " .. modoSelecionado, Duration = 3 })
+        iniciarFarmContinuo()
+    else
+        Library:Notify({ Title = "Farm", Description = "Farm parado.", Duration = 3 })
+    end
+end, { Title = "Iniciar Farm" })
+-- ========================================== --
+-- ⚔️ TAB 3: COMBATE
+-- ========================================== --
+local CombatTab = Window:CreateTab("Combate", false, false)
+local CombatPage = CombatTab:CreatePage("Hitbox & Aim")
+
+-- Variáveis da Hitbox
+local hitboxEnabled = false
+local hitboxSize = 2
+local hitboxTransparency = 0.5
+local hitboxShape = "Quadrado"
+local hitboxColor = Color3.fromRGB(255, 0, 0)
+local tempoAcumulado = 0
+
+local function restaurarHitboxes()
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                hrp.Size = Vector3.new(2, 2, 1)
+                hrp.Transparency = 1
+                hrp.Shape = Enum.PartType.Block
+                hrp.CanTouch = true
+            end
+        end
+    end
+end
+
+RunService.Heartbeat:Connect(function(deltaTime)
+    if not hitboxEnabled then return end
+    tempoAcumulado = tempoAcumulado + deltaTime
+    if tempoAcumulado < 0.05 then return end
+    tempoAcumulado = 0
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                hrp.CanTouch = true
+                hrp.CanQuery = true 
+                hrp.CanCollide = false 
+                hrp.Size = Vector3.new(hitboxSize, hitboxSize, hitboxSize)
+                hrp.Transparency = hitboxTransparency
+                hrp.Color = hitboxColor
+                hrp.Material = Enum.Material.ForceField
+                if hitboxShape == "Bola" then
+                    hrp.Shape = Enum.PartType.Ball
+                else
+                    hrp.Shape = Enum.PartType.Block
+                end
+            end
+        end
+    end
+end)
+
+-- UI do Combate
+local HitboxSec = CombatPage:CreateSection("Hitbox Modificador")
+HitboxSec:AddToggle("Ativar Hitbox", false, function(state)
+    hitboxEnabled = state
+    if not state then
+        restaurarHitboxes()
+    end
+end, { Title = "Habilitar Expansão" })
+
+HitboxSec:AddSlider("Tamanho", 2, 15, 2, function(value)
+    hitboxSize = value
+end, { Title = "Tamanho do HRP" })
+
+HitboxSec:AddSlider("Transparência", 0, 10, 5, function(value)
+    hitboxTransparency = value / 10
+end, { Title = "Nível de Transparência" })
+
+HitboxSec:AddDropdown("Formato", {"Quadrado", "Bola"}, false, function(selected)
+    hitboxShape = selected
+    restaurarHitboxes()
+end, { Title = "Geometria da Hitbox" })
+
+HitboxSec:AddColorPicker("Cor da Hitbox", Color3.fromRGB(255, 0, 0), function(color)
+    hitboxColor = color
+end, { Title = "Cor (RGB)" })
+
+local AimSec = CombatPage:CreateSection("Aim (PC)")
+AimSec:AddButton("Ativar PC Hub", function()
+    pcall(function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/princesinho404/1b39as92/refs/heads/main/3%C2%B0%20aim"))()
+        Library:Notify({ Title = "Aim Hub", Description = "Recurso ativado com sucesso!", Duration = 3 })
+    end)
+end, { Title = "Injetar Script Externo" })
+--------------------------------------------------------------------
+-- ⚙️ SERVIÇOS E VARIÁVEIS BASE (ESSENCIAL PARA NÃO QUEBRAR)
+--------------------------------------------------------------------
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local HttpService = game:GetService("HttpService")
+local CoreGui = game:GetService("CoreGui")
+local Lighting = game:GetService("Lighting")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local rootPart = character:WaitForChild("HumanoidRootPart")
+
+player.CharacterAdded:Connect(function(newChar)
+    character = newChar
+    humanoid = newChar:WaitForChild("Humanoid")
+    rootPart = newChar:WaitForChild("HumanoidRootPart")
+end)
+
+local configSecurity = false 
+local NOME_PASTA = "HVC Premium"
+if isfolder and not isfolder(NOME_PASTA) then
+    pcall(function() makefolder(NOME_PASTA) end)
+end
+
+-- Variáveis do TAS
+local gravando, reproduzindo = false, false
+local tempoDecorrido = 0
+local posicaoInicial = nil
+local gravacaoTemporaria = {}
+local rotasSalvas = {} 
+local fatorSlow, gravarEmSlow, loopAtivo, delayInicio = 1.0, false, false, 0
+local mostrarVisualizer, mostrarVisualizerTemp, mostrarVisualizerSelecionada = true, true, true
+local conexaoSlowDinamic, conexaoWalkSpeedWatch = nil, nil
+local velocidadeSemSlow, jumpPowerOriginal, jumpHeightOriginal = 16, 50, 7.2
+local nomeCustomizado = ""
+local contadorAutomatico = 1
+local slotAtivo = nil
+local pastaLinhas = Instance.new("Folder", workspace)
+pastaLinhas.Name = "PrincesinhoPathVisualizers"
+local pastaVisualizerTemp, pastaVisualizerSelecionada = nil, nil
+local indiceRotaAtual = 1
+local listaDeRotas = {}
+local rotaSelecionada = "Nenhuma"
+
+-- Controle de Animação com Transição Suave (Crossfade)
+local animTrackAtual = nil
+local idAnimTocando = nil
+local cacheAnimacoes = {}
+
+--------------------------------------------------------------------
+-- 🧠 FUNÇÕES LÓGICAS DO TAS (ARQUIVOS, FÍSICA E RENDERIZAÇÃO)
+--------------------------------------------------------------------
+local function limparNomeArquivo(nome) return string.gsub(nome, "[%s%p]", "_") end
+
+local function salvarArquivoRota(nomeRota, tabelaDados)
+    if writefile then
+        pcall(function()
+            tabelaDados.nomeRota = nomeRota
+            local json = HttpService:JSONEncode(tabelaDados)
+            writefile(NOME_PASTA .. "/" .. limparNomeArquivo(nomeRota) .. ".json", json)
+        end)
+    end
+end
+
+local function deletarArquivoRota(nomeRota)
+    if delfile and isfile then
+        pcall(function()
+            local caminho = NOME_PASTA .. "/" .. limparNomeArquivo(nomeRota) .. ".json"
+            if isfile(caminho) then delfile(caminho) end
+        end)
+    end
+end
+
+local function carregarArquivosIniciais()
+    rotasSalvas = {}
+    if listfiles and readfile and isfolder and isfolder(NOME_PASTA) then
+        pcall(function()
+            for _, arq in ipairs(listfiles(NOME_PASTA)) do
+                if string.match(arq, "%.json$") then
+                    local ok, conteudo = pcall(function() return readfile(arq) end)
+                    if ok and conteudo then
+                        local okJson, dados = pcall(function() return HttpService:JSONDecode(conteudo) end)
+                        if okJson and dados and dados.dados then
+                            local nomeSalvo = dados.nomeRota or string.gsub(arq, "^.*[/\\]", ""):gsub("%.json$", "")
+                            rotasSalvas[nomeSalvo] = dados
+                        end
+                    end
+                end
+            end
+        end)
+    end
+end
+carregarArquivosIniciais()
+
+local function atualizarListaNavegacao(manterNome)
+    listaDeRotas = {}
+    for nome, _ in pairs(rotasSalvas) do table.insert(listaDeRotas, nome) end
+    table.sort(listaDeRotas)
+    if #listaDeRotas == 0 then table.insert(listaDeRotas, "Nenhuma") end
+    
+    if manterNome and rotasSalvas[manterNome] then
+        for idx, nome in ipairs(listaDeRotas) do
+            if nome == manterNome then indiceRotaAtual = idx break end
+        end
+    else
+        if indiceRotaAtual > #listaDeRotas then indiceRotaAtual = #listaDeRotas elseif indiceRotaAtual < 1 then indiceRotaAtual = 1 end
+    end
+    rotaSelecionada = listaDeRotas[indiceRotaAtual] or "Nenhuma"
+end
+
+local function limparVisualizer(pasta) if pasta then pasta:Destroy() end end
+
+local function desenharRota3D(slotDados, corLinha)
+    if not slotDados or not slotDados.dados or #slotDados.dados < 2 then return nil end
+    local pastaSlot = Instance.new("Folder", pastaLinhas)
+    pastaSlot.Name = "PathVisualizer"
+    corLinha = corLinha or Color3.fromRGB(140, 90, 255)
+    local posInicio = Vector3.new(slotDados.posicaoStart[1], slotDados.posicaoStart[2], slotDados.posicaoStart[3])
+    local offsetPe = (humanoid and humanoid.HipHeight) and (humanoid.HipHeight + (rootPart.Size.Y / 2)) or 3.0
+
+    local pontosRender, ultimoPontoRender = {}, nil
+    for i = 1, #slotDados.dados do
+        local p = slotDados.dados[i]
+        local posAtual = posInicio + Vector3.new(p.offX, p.offY - offsetPe, p.offZ)
+        if not ultimoPontoRender or (ultimoPontoRender - posAtual).Magnitude >= 0.6 or i == #slotDados.dados then
+            table.insert(pontosRender, posAtual)
+            ultimoPontoRender = posAtual
+        end
+    end
+
+    for i = 1, #pontosRender - 1 do
+        local p1, p2 = pontosRender[i], pontosRender[i+1]
+        local distancia = (p1 - p2).Magnitude
+        if distancia > 0.05 then
+            local linha = Instance.new("Part", pastaSlot)
+            linha.Anchored, linha.CanCollide, linha.CanTouch, linha.CanQuery = true, false, false, false
+            linha.Material, linha.Color, linha.Transparency = Enum.Material.Neon, corLinha, 0.3
+            linha.Size = Vector3.new(0.15, 0.15, distancia)
+            linha.CFrame = CFrame.lookAt(p1, p2) * CFrame.new(0, 0, -distancia / 2)
+        end
+    end
+    return pastaSlot
+end
+
+local function mudarVisualizerSelecionado()
+    limparVisualizer(pastaVisualizerSelecionada)
+    pastaVisualizerSelecionada = nil
+    if mostrarVisualizerSelecionada and rotaSelecionada ~= "Nenhuma" and rotasSalvas[rotaSelecionada] then
+        pastaVisualizerSelecionada = desenharRota3D(rotasSalvas[rotaSelecionada], Color3.fromRGB(0, 255, 255))
+    end
+end
+
+local function atualizarVisualizerTemp()
+    limparVisualizer(pastaVisualizerTemp)
+    pastaVisualizerTemp = nil
+    if mostrarVisualizerTemp and #gravacaoTemporaria > 0 and posicaoInicial then
+        pastaVisualizerTemp = desenharRota3D({dados = gravacaoTemporaria, posicaoStart = {posicaoInicial.X, posicaoInicial.Y, posicaoInicial.Z}}, Color3.fromRGB(255, 215, 0))
+    end
+end
+
+local function atualizarForcaVectorForce(ativo)
+    if not character or not rootPart then return end
+    local vf = rootPart:FindFirstChild("GravidadeVectorForce")
+    if not ativo or not gravando or not gravarEmSlow then
+        if vf then vf.Enabled = false; vf:Destroy() end
+        return
+    end
+    if not vf then
+        local att = rootPart:FindFirstChild("RootRigAttachment") or Instance.new("Attachment", rootPart)
+        vf = Instance.new("VectorForce", rootPart)
+        vf.Name, vf.Attachment0, vf.RelativeTo, vf.ApplyAtCenterOfMass = "GravidadeVectorForce", att, Enum.ActuatorRelativeTo.World, true
+    end
+    local massaTotal, gravNormal = rootPart.AssemblyMass, workspace.Gravity
+    vf.Force = Vector3.new(0, massaTotal * (gravNormal - (gravNormal * (fatorSlow * fatorSlow))), 0)
+    vf.Enabled = (humanoid.FloorMaterial == Enum.Material.Air) or (humanoid:GetState() == Enum.HumanoidStateType.Freefall) or (humanoid:GetState() == Enum.HumanoidStateType.Jumping)
+end
+
+local function aplicarFisicaSlow(ativo)
+    if conexaoSlowDinamic then conexaoSlowDinamic:Disconnect() conexaoSlowDinamic = nil end
+    if conexaoWalkSpeedWatch then conexaoWalkSpeedWatch:Disconnect() conexaoWalkSpeedWatch = nil end
+
+    if ativo then
+        if humanoid then
+            velocidadeSemSlow = humanoid.WalkSpeed
+            jumpPowerOriginal = humanoid.JumpPower
+            jumpHeightOriginal = humanoid.JumpHeight
+            if humanoid.UseJumpPower then humanoid.JumpPower = jumpPowerOriginal * fatorSlow else humanoid.JumpHeight = jumpHeightOriginal * (fatorSlow * fatorSlow) end
+            conexaoWalkSpeedWatch = humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
+                if math.abs(humanoid.WalkSpeed - (velocidadeSemSlow * fatorSlow)) > 0.1 then velocidadeSemSlow = humanoid.WalkSpeed end
+            end)
+        end
+        conexaoSlowDinamic = RunService.PreSimulation:Connect(function()
+            if humanoid and gravando then humanoid.WalkSpeed = velocidadeSemSlow * fatorSlow; atualizarForcaVectorForce(true) end
+        end)
+    else
+        atualizarForcaVectorForce(false)
+        if humanoid then
+            humanoid.WalkSpeed = velocidadeSemSlow
+            if humanoid.UseJumpPower then humanoid.JumpPower = jumpPowerOriginal else humanoid.JumpHeight = jumpHeightOriginal end
+        end
+    end
+end
+
+--------------------------------------------------------------------
+-- LOOP PRINCIPAL DE GRAVAÇÃO E REPRODUÇÃO
+--------------------------------------------------------------------
+RunService.PostSimulation:Connect(function(deltaTime)
+    if not rootPart or not humanoid then return end
+    
+    --------------------------------------------------------------------
+    -- 1. GRAVANDO A ROTA E AS ANIMAÇÕES
+    --------------------------------------------------------------------
+    if gravando then
+        local deltaReal = gravarEmSlow and (deltaTime * fatorSlow) or deltaTime
+        tempoDecorrido = tempoDecorrido + deltaReal
+        local _, y, _ = rootPart.CFrame:ToEulerAnglesYXZ()
+        local multVel = gravarEmSlow and (1 / fatorSlow) or 1.0
+        
+        local animIdAtiva = nil
+        pcall(function()
+            local animator = humanoid:FindFirstChildOfClass("Animator") or Instance.new("Animator", humanoid)
+            if animator then
+                for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+                    if track.IsPlaying and track.Animation then
+                        animIdAtiva = track.Animation.AnimationId
+                        break
+                    end
+                end
+            end
+            
+            if not animIdAtiva then
+                local estado = humanoid:GetState()
+                if estado == Enum.HumanoidStateType.Running then
+                    if humanoid.MoveDirection.Magnitude > 0 then
+                        animIdAtiva = "rbxassetid://507767714"
+                    else
+                        animIdAtiva = "rbxassetid://507766388"
+                    end
+                elseif estado == Enum.HumanoidStateType.Jumping or estado == Enum.HumanoidStateType.Freefall then
+                    animIdAtiva = "rbxassetid://507765000"
+                end
+            end
+        end)
+
+        table.insert(gravacaoTemporaria, {
+            tempo = tempoDecorrido, 
+            velX = rootPart.AssemblyLinearVelocity.X * multVel,
+            velY = rootPart.AssemblyLinearVelocity.Y * multVel, 
+            velZ = rootPart.AssemblyLinearVelocity.Z * multVel,
+            estado = humanoid:GetState().Name, 
+            rotY = y,
+            offX = rootPart.Position.X - posicaoInicial.X, 
+            offY = rootPart.Position.Y - posicaoInicial.Y, 
+            offZ = rootPart.Position.Z - posicaoInicial.Z,
+            animId = animIdAtiva
+        })
+        
+    --------------------------------------------------------------------
+    -- 2. REPRODUZINDO A ROTA COM TRANSIÇÃO SUAVE (CROSSFADE)
+    --------------------------------------------------------------------
+    elseif reproduzindo and slotAtivo then
+        tempoDecorrido = tempoDecorrido + deltaTime
+        local historico = slotAtivo.dados
+        local dadosAlvo = historico[1] 
+        
+        for i = #historico, 1, -1 do
+            if historico[i].tempo <= tempoDecorrido then dadosAlvo = historico[i] break end
+        end
+        
+        local tempoFinal = slotAtivo.tempoTotal or historico[#historico].tempo
+        
+        if tempoDecorrido >= tempoFinal then
+            if loopAtivo then
+                tempoDecorrido = 0
+                rootPart.AssemblyLinearVelocity, rootPart.AssemblyAngularVelocity = Vector3.zero, Vector3.zero
+                local pIni = historico[1]
+                character:PivotTo(CFrame.new(slotAtivo.posicaoStart[1] + pIni.offX, slotAtivo.posicaoStart[2] + pIni.offY, slotAtivo.posicaoStart[3] + pIni.offZ) * CFrame.fromEulerAnglesYXZ(0, pIni.rotY, 0))
+            else
+                reproduzindo, slotAtivo = false, nil
+                
+                if animTrackAtual then
+                    animTrackAtual:Stop(0.2)
+                    animTrackAtual = nil
+                    idAnimTocando = nil
+                end
+                
+                humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+                pcall(function() Library:Notify({Title = "TAS", Description = "Reprodução Concluída!", Duration = 3}) end)
+            end
+        else
+            rootPart.AssemblyLinearVelocity = Vector3.new(dadosAlvo.velX, dadosAlvo.velY, dadosAlvo.velZ)
+            rootPart.AssemblyAngularVelocity = Vector3.zero
+            rootPart.CFrame = CFrame.new(slotAtivo.posicaoStart[1] + dadosAlvo.offX, slotAtivo.posicaoStart[2] + dadosAlvo.offY, slotAtivo.posicaoStart[3] + dadosAlvo.offZ) * CFrame.fromEulerAnglesYXZ(0, dadosAlvo.rotY, 0)
+            
+            pcall(function()
+                if dadosAlvo.estado then
+                    local stEnum = Enum.HumanoidStateType[dadosAlvo.estado]
+                    if stEnum and humanoid:GetState() ~= stEnum then humanoid:ChangeState(stEnum) end
+                end
+            end)
+            
+            -- CROSSFADE SUAVE: SÓ MUDA A ANIMAÇÃO QUANDO O ID REALMENTE MUDAR, COM TRANSIÇÃO FLUIDA
+            if dadosAlvo.animId and dadosAlvo.animId ~= "" then
+                if idAnimTocando ~= dadosAlvo.animId then
+                    idAnimTocando = dadosAlvo.animId
+                    local novaTrack = cacheAnimacoes[dadosAlvo.animId]
+                    if novaTrack then
+                        pcall(function()
+                            local animator = humanoid:FindFirstChildOfClass("Animator") or Instance.new("Animator", humanoid)
+                            if animator then
+                                for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+                                    if track ~= novaTrack then
+                                        track:Stop(0.15)
+                                    end
+                                end
+                            end
+                        end)
+                        
+                        novaTrack.Priority = Enum.AnimationPriority.Action4
+                        novaTrack:AdjustWeight(1)
+                        if not novaTrack.IsPlaying then
+                            novaTrack:Play(0.15)
+                        end
+                        animTrackAtual = novaTrack
+                    end
+                end
+            end
+        end
+    end
+end)
+
+local function iniciarPlayback(slot)
+    if not slot or not slot.dados or #slot.dados == 0 then
+        Library:Notify({Title = "Erro", Description = "Sem dados na rota!", Duration = 3}); return 
+    end
+    reproduzindo = false; task.wait(0.05)
+    slotAtivo = slot; tempoDecorrido = 0
+    idAnimTocando = nil
+    cacheAnimacoes = {}
+    
+    pcall(function()
+        local animator = humanoid:FindFirstChildOfClass("Animator") or Instance.new("Animator", humanoid)
+        if animator then
+            for _, frame in ipairs(slot.dados) do
+                if frame.animId and frame.animId ~= "" and not cacheAnimacoes[frame.animId] then
+                    local novaAnim = Instance.new("Animation")
+                    novaAnim.AnimationId = frame.animId
+                    cacheAnimacoes[frame.animId] = animator:LoadAnimation(novaAnim)
+                end
+            end
+        end
+    end)
+
+    local animateScript = character:FindFirstChild("Animate")
+    if animateScript then animateScript:Destroy() end
+
+    local pStart, pPrimeiro = slot.posicaoStart, slot.dados[1]
+    local posAlvoExata = Vector3.new(pStart[1] + pPrimeiro.offX, pStart[2] + pPrimeiro.offY, pStart[3] + pPrimeiro.offZ)
+    local targetCF = CFrame.new(posAlvoExata) * CFrame.fromEulerAnglesYXZ(0, pPrimeiro.rotY, 0)
+    local dist = (rootPart.Position - posAlvoExata).Magnitude
+
+    if animTrackAtual then
+        animTrackAtual:Stop(0.2)
+        animTrackAtual = nil
+        idAnimTocando = nil
+    end
+
+    if configSecurity then
+        local velAtual = humanoid.WalkSpeed; humanoid.WalkSpeed = 16
+        if dist > 1.2 and dist < 35 then
+            humanoid:MoveTo(posAlvoExata - Vector3.new(0, (humanoid and humanoid.HipHeight) and (humanoid.HipHeight + (rootPart.Size.Y / 2)) or 3.0, 0))
+            local t0 = os.clock()
+            while (Vector3.new(rootPart.Position.X, 0, rootPart.Position.Z) - Vector3.new(posAlvoExata.X, 0, posAlvoExata.Z)).Magnitude > 1.2 and (os.clock() - t0) < 2.5 do task.wait() end
+            humanoid:MoveTo(rootPart.Position)
+            rootPart.AssemblyLinearVelocity, rootPart.AssemblyAngularVelocity, humanoid.AutoRotate = Vector3.zero, Vector3.zero
+            TweenService:Create(rootPart, TweenInfo.new(0.2, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {CFrame = targetCF}):Play()
+            task.wait(0.2); humanoid.AutoRotate = true
+        else
+            character:PivotTo(targetCF)
+        end
+        humanoid.WalkSpeed = velAtual
+    else
+        Library:Notify({Title = "TAS", Description = "Vá até o DUMMY VERDE brilhante!", Duration = 3})
+        
+        -- CRIA O DUMMY E O ÍCONE DE EXCLAMAÇÃO (ALTURA E DISTÂNCIA HORIZONTAL CORRIGIDAS)
+        local dummy = nil
+        pcall(function()
+            character.Archivable = true
+            dummy = character:Clone()
+            character.Archivable = false
+            
+            for _, v in ipairs(dummy:GetDescendants()) do
+                if v:IsA("Script") or v:IsA("LocalScript") or v:IsA("ModuleScript") then
+                    v:Destroy()
+                end
+            end
+            
+            for _, v in ipairs(dummy:GetDescendants()) do
+                if v:IsA("BasePart") then
+                    v.Material = Enum.Material.ForceField
+                    v.Color = Color3.fromRGB(0, 255, 0)
+                    v.CanCollide = false
+                    v.CanTouch = false
+                    v.Anchored = true
+                end
+            end
+            
+            -- Ajuste fino de altura para o dummy ficar perfeitamente em pé no chão (sem afundar)
+            local offsetChao = Vector3.new(0, 1.5, 0) 
+            local posicaoCorrigida = targetCF + offsetChao
+            dummy:PivotTo(posicaoCorrigida)
+            
+            -- Adiciona a interface da Exclamação acima da cabeça visível através de paredes
+            local parteReferencia = dummy:FindFirstChild("Head") or dummy:FindFirstChild("HumanoidRootPart")
+            if parteReferencia then
+                local billboard = Instance.new("BillboardGui")
+                billboard.Name = "ExclamacaoWaypoint"
+                billboard.Size = UDim2.new(0, 50, 0, 50)
+                billboard.StudsOffset = Vector3.new(0, 2.5, 0)
+                billboard.AlwaysOnTop = true
+                billboard.Adornee = parteReferencia
+                
+                local textLabel = Instance.new("TextLabel")
+                textLabel.Size = UDim2.new(1, 0, 1, 0)
+                textLabel.BackgroundTransparency = 1
+                textLabel.Text = "!"
+                textLabel.TextColor3 = Color3.fromRGB(255, 230, 0)
+                textLabel.TextScaled = true
+                textLabel.Font = Enum.Font.FredokaOne
+                
+                local uiStroke = Instance.new("UIStroke")
+                uiStroke.Thickness = 3
+                uiStroke.Color = Color3.fromRGB(0, 0, 0)
+                uiStroke.Parent = textLabel
+                
+                textLabel.Parent = billboard
+                billboard.Parent = dummy
+            end
+            
+            dummy.Parent = workspace
+        end)
+
+        local conectado = nil
+        local chegou = false
+        
+        local function iniciarCaminhadaSuave()
+            if chegou then return end
+            chegou = true
+            if conectado then conectado:Disconnect() end
+            
+            local velAtual = humanoid.WalkSpeed; humanoid.WalkSpeed = 16
+            humanoid:MoveTo(posAlvoExata)
+            
+            local t0 = os.clock()
+            while (Vector3.new(rootPart.Position.X, 0, rootPart.Position.Z) - Vector3.new(posAlvoExata.X, 0, posAlvoExata.Z)).Magnitude > 1.2 and (os.clock() - t0) < 2.5 do
+                task.wait()
+            end
+            
+            humanoid:MoveTo(rootPart.Position)
+            rootPart.AssemblyLinearVelocity, rootPart.AssemblyAngularVelocity = Vector3.zero, Vector3.zero
+            TweenService:Create(rootPart, TweenInfo.new(0.2, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {CFrame = targetCF}):Play()
+            task.wait(0.2)
+            humanoid.AutoRotate = true
+            humanoid.WalkSpeed = velAtual
+            
+            if dummy then dummy:Destroy() end
+            
+            if delayInicio > 0 then task.wait(delayInicio) end
+            task.defer(function() reproduzindo = true end)
+            Library:Notify({Title = "TAS", Description = "Reproduzindo Rota!", Duration = 3})
+        end
+
+        -- Sistema de proximidade corrigido (usa apenas distância horizontal X e Z para evitar falhas)
+        conectado = RunService.Heartbeat:Connect(function()
+            if not character or not rootPart or (not reproduzindo and slotAtivo == nil) then 
+                if conectado then conectado:Disconnect() end
+                if dummy then dummy:Destroy() end
+                return
+            end
+            
+            local posPlayerPlana = Vector3.new(rootPart.Position.X, 0, rootPart.Position.Z)
+            local posAlvoPlana = Vector3.new(posAlvoExata.X, 0, posAlvoExata.Z)
+            local distanciaHorizontal = (posPlayerPlana - posAlvoPlana).Magnitude
+            
+            if distanciaHorizontal <= 3.0 and not chegou then
+                iniciarCaminhadaSuave()
+            end
+        end)
+        
+        return
+    end
+
+    rootPart.AssemblyLinearVelocity, rootPart.AssemblyAngularVelocity = Vector3.zero, Vector3.zero
+
+    if delayInicio > 0 then task.wait(delayInicio) end
+    task.defer(function() reproduzindo = true end)
+    Library:Notify({Title = "TAS", Description = "Reproduzindo Rota!", Duration = 3})
+end
+
+--------------------------------------------------------------------
+-- 🎥 TAB 4: TAS (Rica em Funções)
+--------------------------------------------------------------------
+local TasTab = Window:CreateTab("TAS", false, false)
+local TasRecPage = TasTab:CreatePage("Gravação & Execução")
+
+local TasControls = TasRecPage:CreateSection("Rotas Temporárias")
+local TasConfig = TasRecPage:CreateSection("Configurações do Motor")
+local TasSaved = TasRecPage:CreateSection("Rotas Salvas")
+
+local DropdownRotas = nil
+
+local function atualizarDropdownUI()
+    listaDeRotas = {}
+    for nomeRota, _ in pairs(rotasSalvas) do table.insert(listaDeRotas, nomeRota) end
+    table.sort(listaDeRotas)
+    
+    if #listaDeRotas == 0 then table.insert(listaDeRotas, "Nenhuma") end
+    
+    if _G.ZyronX_Dropdowns and _G.ZyronX_Dropdowns["Selecionar Rota"] then
+        _G.ZyronX_Dropdowns["Selecionar Rota"]:Refresh(listaDeRotas)
+    end
+end
+
+-- ROTAS TEMPORÁRIAS
+TasControls:AddToggle("Gravar", false, function(state)
+    if state then
+        reproduzindo = false
+        gravacaoTemporaria = {}
+        posicaoInicial = rootPart.Position
+        tempoDecorrido = 0
+        gravando = true
+        limparVisualizer(pastaVisualizerTemp)
+        if gravarEmSlow then aplicarFisicaSlow(true) end
+        Library:Notify({Title = "TAS", Description = "Gravação Iniciada!", Duration = 3})
+    else
+        gravando = false
+        aplicarFisicaSlow(false)
+        atualizarVisualizerTemp()
+        Library:Notify({Title = "TAS", Description = "Gravação Parada!", Duration = 3})
+    end
+end, { Title = "Gravar rota temporária" })
+
+TasControls:AddToggle("Mostrar Rota", true, function(state)
+    mostrarVisualizerTemp = state
+    atualizarVisualizerTemp()
+end, { Title = "Exibe a rota da rota temporária" })
+
+TasControls:AddButton("Reproduzir / Parar", function()
+    if reproduzindo then
+        reproduzindo, slotAtivo = false, nil
+        if animTrackAtual then animTrackAtual:Stop(0.2); animTrackAtual = nil; idAnimTocando = nil end
+        Library:Notify({Title = "TAS", Description = "Reprodução Parada!", Duration = 3})
+    else
+        if #gravacaoTemporaria == 0 or not posicaoInicial then
+            Library:Notify({Title = "Erro", Description = "Nenhuma gravação temporária!", Duration = 3}); return
+        end
+        iniciarPlayback({dados = gravacaoTemporaria, posicaoStart = {posicaoInicial.X, posicaoInicial.Y, posicaoInicial.Z}, tempoTotal = tempoDecorrido})
+    end
+end, { Title = "Reproduz a rota temporária" })
+
+TasControls:AddTextbox("Nome da Rota", "Vazio = Automatico", function(texto)
+    nomeCustomizado = texto
+end, { Title = "Dê um nome antes de salvar" })
+
+TasControls:AddButton("Salvar Rota", function()
+    if #gravacaoTemporaria == 0 or not posicaoInicial then
+        Library:Notify({Title = "Erro", Description = "Nenhuma gravação para salvar!", Duration = 3}); return
+    end
+    
+    local nomeFinal = (nomeCustomizado == "" or nomeCustomizado == "Vazio = Automatico") and ("Parkour " .. contadorAutomatico) or nomeCustomizado
+    if nomeFinal:match("^Parkour ") then contadorAutomatico = contadorAutomatico + 1 end
+    
+    local dadosSlot = {dados = HttpService:JSONDecode(HttpService:JSONEncode(gravacaoTemporaria)), posicaoStart = {posicaoInicial.X, posicaoInicial.Y, posicaoInicial.Z}, tempoTotal = tempoDecorrido}
+    rotasSalvas[nomeFinal] = dadosSlot
+    salvarArquivoRota(nomeFinal, dadosSlot)
+    atualizarListaNavegacao(nomeFinal)
+    mudarVisualizerSelecionado()
+    atualizarDropdownUI()
+    
+    Library:Notify({Title = "Sucesso", Description = "Rota salva!", Duration = 3})
+end, { Title = "Salva a rota temporária" })
+
+-- CONFIGURAÇÕES DO MOTOR
+TasConfig:AddSlider("Velocidade de Gravação", 1, 10, 10, function(val) 
+    fatorSlow = val / 10
+    gravarEmSlow = (fatorSlow < 1.0)
+end, { Title = "Velocidade (0.1 a 1.0)" })
+
+TasConfig:AddToggle("MoveTo", false, function(state)
+    configSecurity = state
+end, { Title = "Ir até o ponto inicial automaticamente" })
+
+-- ROTAS SALVAS
+atualizarListaNavegacao()
+local rotasDropdownList = #listaDeRotas > 0 and listaDeRotas or {"Nenhuma"}
+
+DropdownRotas = TasSaved:AddDropdown("Selecionar Rota", rotasDropdownList, false, function(selected)
+    rotaSelecionada = selected
+    mudarVisualizerSelecionado()
+end, { Title = "Gerenciar rota salva", Flag = "MenuRotasTAS" })
+
+TasSaved:AddButton("Iniciar / Parar", function()
+    if reproduzindo then
+        reproduzindo, slotAtivo = false, nil
+        if animTrackAtual then animTrackAtual:Stop(0.2); animTrackAtual = nil; idAnimTocando = nil end
+        Library:Notify({Title = "TAS", Description = "Reprodução Parada!", Duration = 3})
+    else
+        if rotaSelecionada ~= "Nenhuma" and rotasSalvas[rotaSelecionada] then
+            iniciarPlayback(rotasSalvas[rotaSelecionada])
+        else
+            Library:Notify({Title = "Erro", Description = "Selecione uma rota!", Duration = 3})
+        end
+    end
+end, { Title = "Inicia ou pausa a rota salva selecionada" })
+
+TasSaved:AddToggle("Ver Rota", true, function(state)
+    mostrarVisualizerSelecionada = state
+    mudarVisualizerSelecionado()
+end, { Title = "Mostra a rota salva selecionada" })
+
+TasSaved:AddTextbox("Renomear", "Novo nome...", function(text)
+    if rotaSelecionada ~= "Nenhuma" and rotasSalvas[rotaSelecionada] and text ~= "" and text ~= rotaSelecionada then
+        local dadosAntigos = rotasSalvas[rotaSelecionada]
+        deletarArquivoRota(rotaSelecionada)
+        rotasSalvas[rotaSelecionada] = nil
+        rotasSalvas[text] = dadosAntigos
+        salvarArquivoRota(text, dadosAntigos)
+        atualizarListaNavegacao(text)
+        mudarVisualizerSelecionado()
+        atualizarDropdownUI()
+        
+        Library:Notify({Title = "TAS", Description = "Renomeada para " .. text, Duration = 3})
+    end
+end, { Title = "Renomeia a rota selecionada" })
+
+TasSaved:AddButton("Deletar Rota", function()
+    if rotaSelecionada ~= "Nenhuma" and rotasSalvas[rotaSelecionada] then
+        deletarArquivoRota(rotaSelecionada)
+        rotasSalvas[rotaSelecionada] = nil
+        atualizarListaNavegacao()
+        mudarVisualizerSelecionado()
+        atualizarDropdownUI()
+        
+        Library:Notify({Title = "TAS", Description = "Rota apagada!", Duration = 3})
+    end
+end, { Title = "Apaga a rota selecionada" })
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer -- Garantindo que a variável player exista para pegar o próprio nick
+
+--------------------------------------------------------------------
+-- 👁️ VARIÁVEIS DO VISUAL
+--------------------------------------------------------------------
+local Fardas = {
+    ["Nenhuma"] = nil,
+    ["Oficiais"] = {S = "rbxassetid://14825639654", P = "rbxassetid://14825643510"},
+    ["Generais"] = {S = "rbxassetid://278436685", P = "rbxassetid://278437052"},
+    ["Elite"] = {S = "rbxassetid://75117162625698", P = "rbxassetid://132857388083739"}
+}
+local backups = {}
+local inputTargetNick, inputDisplayNick, inputPatente, inputDivisao = "", "", "", ""
+local selectedColor = Color3.fromRGB(192, 0, 255) -- Padrão: Vermelho Escarlate
+local usarTag = true
+local fardaSelecionada = "Nenhuma"
+local cargoStatus = "LIGTH" -- Padrão
+local deviceIcon = "🎮" -- Padrão Console
+local fullBrightConn
+
+--------------------------------------------------------------------
+-- 👁️ TAB 5: VISUAL (INTERFACE E LÓGICA)
+--------------------------------------------------------------------
+local VisualTab = Window:CreateTab("Visual", false, false)
+local VisualPage = VisualTab:CreatePage("Geral")
+
+local VisualDisfarceCard = VisualPage:CreateSection("Disfarçar (Overhead & Farda)")
+
+-- Atualizei o texto de dica da caixa do alvo para avisar sobre o "all"
+VisualDisfarceCard:AddTextbox("Modificar o player", "Vazio = você | 'all' = todos", function(text) inputTargetNick = text end, { Title = "Alvo" })
+VisualDisfarceCard:AddTextbox("Nick Exibição", "Vazio = princesinho0004", function(text) inputDisplayNick = text end, { Title = "Display" })
+VisualDisfarceCard:AddTextbox("Patente", "Vazio = [CR] Criador", function(text) inputPatente = text end, { Title = "Patente" })
+VisualDisfarceCard:AddTextbox("Divisão", "Vazio = discord.gg/havac", function(text) inputDivisao = text end, { Title = "Divisão" })
+
+VisualDisfarceCard:AddDropdown("Dispositivo", {"🎮", "🖥️", "📱"}, false, function(selected) deviceIcon = selected end, { Title = "Dispositivo" })
+VisualDisfarceCard:AddToggle("Ativar club", true, function(state) usarTag = state end, { Title = "Club Tag" })
+VisualDisfarceCard:AddDropdown("Selecionar club", {"LIGTH", "ELITE", "VICE"}, false, function(selected) cargoStatus = selected end, { Title = "Cargo" })
+
+-- Sistema de Fardas adicionado
+VisualDisfarceCard:AddDropdown("Selecionar Farda", {"Nenhuma", "Oficiais", "Generais", "Elite"}, false, function(selected) 
+    fardaSelecionada = selected 
+end, { Title = "Mudar Roupa" })
+
+-- O ColorPicker focado no padrão Escarlate
+VisualDisfarceCard:AddColorPicker("Cor da Overhead", selectedColor, function(color)
+    selectedColor = color
+end, { Title = "Cor do Texto" })
+
+
+VisualDisfarceCard:AddButton("Aplicar Disfarce", function()
+    local targetInput = string.lower(inputTargetNick)
+    
+    -- Função local para não repetir código
+    local function applyDisguise(targetName, targetChar)
+        if not targetChar or not targetChar:FindFirstChild("Head") then return end
+
+        local head = targetChar.Head
+        local labelNome = head:FindFirstChild("Nome", true) and head:FindFirstChild("Nome", true):FindFirstChildOfClass("TextLabel")
+        local labelPatente = head:FindFirstChild("Patente", true) and head:FindFirstChild("Patente", true):FindFirstChildOfClass("TextLabel")
+        local labelDivisao = (head:FindFirstChild("Divis\195\163o", true) or head:FindFirstChild("Divisão", true)) and (head:FindFirstChild("Divis\195\163o", true) or head:FindFirstChild("Divisão", true)):FindFirstChildOfClass("TextLabel")
+        
+        local shirt = targetChar:FindFirstChildOfClass("Shirt")
+        local pants = targetChar:FindFirstChildOfClass("Pants")
+
+        -- Sistema de Backup para poder restaurar depois (roupas e textos)
+        if not backups[targetName] then
+            backups[targetName] = {
+                ShirtTemplate = shirt and shirt.ShirtTemplate or nil, 
+                PantsTemplate = pants and pants.PantsTemplate or nil,
+                NomeText = labelNome and labelNome.Text or nil, 
+                NomeColor = labelNome and labelNome.TextColor3 or nil,
+                PatenteText = labelPatente and labelPatente.Text or nil, 
+                PatenteColor = labelPatente and labelPatente.TextColor3 or nil,
+                DivisaoText = labelDivisao and labelDivisao.Text or nil, 
+                DivisaoColor = labelDivisao and labelDivisao.TextColor3 or nil,
+            }
+        end
+
+        -- Aplicando os padrões (fallbacks) se o usuário deixou a caixa de texto em branco
+        local finalNick = inputDisplayNick ~= "" and inputDisplayNick or "princesinho0004"
+        local finalPatente = inputPatente ~= "" and inputPatente or "[CR] Criador"
+        local finalDivisao = inputDivisao ~= "" and inputDivisao or "discord.gg/havac"
+
+        local formattedName = usarTag and string.format("[%s] %s • %s", cargoStatus, deviceIcon, finalNick) or string.format("%s • %s", deviceIcon, finalNick)
+
+        -- Aplicando os textos e a cor
+        if labelNome then labelNome.Text = formattedName; labelNome.TextColor3 = selectedColor end
+        if labelPatente then labelPatente.Text = finalPatente; labelPatente.TextColor3 = selectedColor end
+        if labelDivisao then labelDivisao.Text = finalDivisao; labelDivisao.TextColor3 = selectedColor end
+
+        -- Aplicando a Farda (se o usuário selecionou uma)
+        if fardaSelecionada ~= "Nenhuma" and Fardas[fardaSelecionada] then
+            if shirt then shirt.ShirtTemplate = Fardas[fardaSelecionada].S end
+            if pants then pants.PantsTemplate = Fardas[fardaSelecionada].P end
+        end
+    end
+
+    -- Lógica para verificar se é "all" ou um jogador específico
+    if targetInput == "all" then
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr.Character then
+                applyDisguise(plr.Name, plr.Character)
+            end
+        end
+        Library:Notify({Title="Sucesso", Description="Disfarce aplicado em TODOS!", Duration=3})
+    else
+        local targetName = inputTargetNick ~= "" and inputTargetNick or player.Name
+        local targetChar = workspace:FindFirstChild(targetName)
+        
+        if targetChar then
+            applyDisguise(targetName, targetChar)
+            Library:Notify({Title="Sucesso", Description="Disfarce aplicado em: " .. targetName, Duration=3})
+        else
+            Library:Notify({Title="Erro", Description="Jogador não encontrado no mapa!", Duration=3})
+        end
+    end
+end)
+
+VisualDisfarceCard:AddButton("Desfazer Disfarce", function()
+    local targetInput = string.lower(inputTargetNick)
+
+    -- Função local para não repetir código
+    local function undoDisguise(targetName, targetChar)
+        if not targetChar or not targetChar:FindFirstChild("Head") then return end
+
+        local backup = backups[targetName]
+        if not backup then return end -- Ignora se não houver backup
+
+        local head = targetChar.Head
+        local labelNome = head:FindFirstChild("Nome", true) and head:FindFirstChild("Nome", true):FindFirstChildOfClass("TextLabel")
+        local labelPatente = head:FindFirstChild("Patente", true) and head:FindFirstChild("Patente", true):FindFirstChildOfClass("TextLabel")
+        local labelDivisao = (head:FindFirstChild("Divis\195\163o", true) or head:FindFirstChild("Divisão", true)) and (head:FindFirstChild("Divis\195\163o", true) or head:FindFirstChild("Divisão", true)):FindFirstChildOfClass("TextLabel")
+        local shirt = targetChar:FindFirstChildOfClass("Shirt")
+        local pants = targetChar:FindFirstChildOfClass("Pants")
+
+        -- Restaurando Textos
+        if labelNome and backup.NomeText then labelNome.Text = backup.NomeText; labelNome.TextColor3 = backup.NomeColor end
+        if labelPatente and backup.PatenteText then labelPatente.Text = backup.PatenteText; labelPatente.TextColor3 = backup.PatenteColor end
+        if labelDivisao and backup.DivisaoText then labelDivisao.Text = backup.DivisaoText; labelDivisao.TextColor3 = backup.DivisaoColor end
+        
+        -- Restaurando Roupas originais
+        if backup.ShirtTemplate and shirt then shirt.ShirtTemplate = backup.ShirtTemplate end
+        if backup.PantsTemplate and pants then pants.PantsTemplate = backup.PantsTemplate end
+    end
+
+    -- Lógica para verificar se é "all" ou um jogador específico
+    if targetInput == "all" then
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr.Character then
+                undoDisguise(plr.Name, plr.Character)
+            end
+        end
+        Library:Notify({Title="Restaurado", Description="Aparência de TODOS foi restaurada.", Duration=3})
+    else
+        local targetName = inputTargetNick ~= "" and inputTargetNick or player.Name
+        local targetChar = workspace:FindFirstChild(targetName)
+        
+        if targetChar then
+            if not backups[targetName] then 
+                Library:Notify({Title="Aviso", Description="Nenhum backup encontrado para " .. targetName, Duration=3})
+                return 
+            end
+            undoDisguise(targetName, targetChar)
+            Library:Notify({Title="Restaurado", Description="Aparência original de " .. targetName .. " restaurada.", Duration=3})
+        else
+            Library:Notify({Title="Erro", Description="Jogador não encontrado no mapa!", Duration=3})
+        end
+    end
+end)
+
+local OtimizacaoCard = VisualPage:CreateSection("Otimização & Câmera")
+OtimizacaoCard:AddSlider("FOV da Câmera", 70, 120, 70, function(val) workspace.CurrentCamera.FieldOfView = val end, { Title = "Campo de Visão" })
+OtimizacaoCard:AddSlider("Max Zoom Distance", 10, 400, 128, function(val) if player then player.CameraMaxZoomDistance = val end end, { Title = "Zoom Máximo" })
+
+OtimizacaoCard:AddButton("Remover Texturas (Boost)", function()
+    pcall(function()
+        for _, v in pairs(workspace:GetDescendants()) do
+            if v:IsA("BasePart") and not v:IsA("Terrain") then v.Material = Enum.Material.SmoothPlastic; v.Reflectance = 0; v.CastShadow = false end
+        end
+        Lighting.GlobalShadows = false
+    end)
+    Library:Notify({Title="Otimização", Description="Texturas removidas com sucesso!", Duration=3})
+end)
+
+OtimizacaoCard:AddToggle("Fullbright", false, function(state)
+    if state then
+        fullBrightConn = RunService.RenderStepped:Connect(function()
+            Lighting.Brightness, Lighting.ClockTime, Lighting.FogEnd, Lighting.GlobalShadows = 2, 14, 100000, false
+        end)
+    else
+        if fullBrightConn then fullBrightConn:Disconnect(); fullBrightConn = nil end
+        Lighting.Brightness, Lighting.ClockTime, Lighting.GlobalShadows = 1, 12, true
+    end
+end, { Title = "Visão Noturna" })
+
+Library:Notify({
+    Title = "Módulo Visual",
+    Description = "Interface visual carregada!",
+    Duration = 5
+})
